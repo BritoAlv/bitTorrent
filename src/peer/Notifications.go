@@ -6,20 +6,20 @@ import (
 	"net"
 )
 
-type TrackerResponseNotification struct {
+type trackerResponseNotification struct {
 	Response tracker.TrackResponse
 }
 
-type DownloadNotification struct{}
+type downloadNotification struct{}
 
-type PeerDownNotification struct {
+type peerDownNotification struct {
 	Address common.Address
 }
 
-type PeerUpNotification struct {
+type peerUpNotification struct {
 	Address    common.Address
 	Id         string
 	Connection net.Conn
 }
 
-type KillNotification struct{}
+type killNotification struct{}

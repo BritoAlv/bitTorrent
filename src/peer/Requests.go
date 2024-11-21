@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func RequestTracker(notificationChannel chan interface{}, tracker tracker.Tracker, request tracker.TrackRequest, timeToWait int) {
+func requestTracker(notificationChannel chan interface{}, tracker tracker.Tracker, request tracker.TrackRequest, timeToWait int) {
 	time.Sleep(time.Second * time.Duration(timeToWait)) // Wait for the specified time
 	response, err := tracker.Track(request)
 
@@ -19,10 +19,10 @@ func RequestTracker(notificationChannel chan interface{}, tracker tracker.Tracke
 		fmt.Println("An error occurred contacting the tracker")
 	}
 
-	notificationChannel <- TrackerResponseNotification{Response: response}
+	notificationChannel <- trackerResponseNotification{Response: response}
 }
 
-func RequestDownload(notificationChannel chan interface{}, timeToWait int) {
+func requestDownload(notificationChannel chan interface{}, timeToWait int) {
 
 	time.Sleep(time.Second * time.Duration(timeToWait)) // Wait for the specified time
 
@@ -30,10 +30,10 @@ func RequestDownload(notificationChannel chan interface{}, timeToWait int) {
 	// ...
 	//
 
-	notificationChannel <- DownloadNotification{}
+	notificationChannel <- downloadNotification{}
 }
 
-func RequestPeerUp(notificationChannel chan interface{}, address common.Address, id string) {
+func requestPeerUp(notificationChannel chan interface{}, address common.Address, id string) {
 	connection, err := net.Dial("tcp", address.Ip+":"+address.Port)
 
 	// Check if connection could not be established, if so then stop
@@ -41,7 +41,7 @@ func RequestPeerUp(notificationChannel chan interface{}, address common.Address,
 		return
 	}
 
-	err = StartHandshake(connection)
+	err = startHandshake(connection)
 
 	// Check if handshaking could not be done, if so then stop
 	if err != nil {
@@ -49,21 +49,21 @@ func RequestPeerUp(notificationChannel chan interface{}, address common.Address,
 	}
 
 	fmt.Println("PEER: Connection established from: " + connection.LocalAddr().String())
-	notificationChannel <- PeerUpNotification{
+	notificationChannel <- peerUpNotification{
 		Address:    address,
 		Id:         id,
 		Connection: connection,
 	}
 }
 
-func RequestPeerListen(notificationChannel chan interface{}, address common.Address) {
+func requestPeerListen(notificationChannel chan interface{}, address common.Address) {
 	listener, err := net.Listen("tcp", address.Ip+":"+address.Port)
 
 	fmt.Println("PEER: Start listening")
 	// TODO: Properly handle error here
 	if err != nil {
 		fmt.Println("Peer could not start listening")
-		notificationChannel <- KillNotification{}
+		notificationChannel <- killNotification{}
 	}
 
 	for {
@@ -73,18 +73,18 @@ func RequestPeerListen(notificationChannel chan interface{}, address common.Addr
 			continue
 		}
 
-		go ReceiveHandshake(notificationChannel, connection)
+		go receiveHandshake(notificationChannel, connection)
 	}
 }
 
-func StartHandshake(connection net.Conn) error {
+func startHandshake(connection net.Conn) error {
 	// TODO: Perform a bittorrent starter-handshake
 	message := []byte("Hi Neighbor!")
-	err := ReliableWrite(connection, message)
+	err := reliableWrite(connection, message)
 	return err
 }
 
-func ReceiveHandshake(notificationChannel chan interface{}, connection net.Conn) error {
+func receiveHandshake(notificationChannel chan interface{}, connection net.Conn) error {
 	// TODO: Perform a bittorrent receiver-handshake
 	for {
 		buffer := make([]byte, 1024)
@@ -111,7 +111,7 @@ func ReceiveHandshake(notificationChannel chan interface{}, connection net.Conn)
 
 		fmt.Println("PEER: Received a handshake from " + connection.RemoteAddr().String())
 
-		notificationChannel <- PeerUpNotification{
+		notificationChannel <- peerUpNotification{
 			Address: common.Address{
 				Ip:   ip,
 				Port: port,
@@ -124,7 +124,7 @@ func ReceiveHandshake(notificationChannel chan interface{}, connection net.Conn)
 	}
 }
 
-func ReliableWrite(connection net.Conn, message []byte) error {
+func reliableWrite(connection net.Conn, message []byte) error {
 	totalWritten := 0
 
 	for totalWritten < len(message) {
