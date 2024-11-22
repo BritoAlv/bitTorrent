@@ -4,11 +4,12 @@ import (
 	"Centralized/Common"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"sync"
 )
 
-const SizeBinaryString = 160
+const SizeBinaryString = 10
 const ServerUrl = "http://localhost:8080/"
 const requests = 10
 const stringsPerRequest = 4
@@ -24,8 +25,8 @@ var stored = map[string]bool{}
 var lock = sync.Mutex{}
 var group = sync.WaitGroup{}
 
-func sendRequest(str string) (string, error) {
-	resp, err := http.Get(fmt.Sprintf(ServerUrl+"?arg=%s", str))
+func sendGetRequest(direction string, argStr string) (string, error) {
+	resp, err := http.Get(fmt.Sprintf(ServerUrl+direction+"?arg=%s", argStr))
 	if err != nil {
 		return "", err
 	}
@@ -40,8 +41,7 @@ func sendRequest(str string) (string, error) {
 	return answer, nil
 }
 
-func RequestsSender(id int) {
-	var logger = common.NewLogger(fmt.Sprintf("ClientLog%d.txt", id))
+func RequestSender(logger *common.Logger) {
 	strings := [stringsPerRequest]string{}
 	confirmed := [stringsPerRequest]bool{}
 	isNew := [stringsPerRequest]bool{}
@@ -49,45 +49,60 @@ func RequestsSender(id int) {
 	for i := 0; i < stringsPerRequest; i++ {
 		str, err := common.GenerateRandomString(SizeBinaryString)
 		if err != nil {
-			logger.WriteToFile("Error when generating random string : " + err.Error())
+			logger.WriteToFileError("Error when generating random string : " + err.Error())
 			return
 		}
 		strings[i] = str
 		confirmed[i] = stored[str]
-		logger.WriteToFile(fmt.Sprintf("Request generated string %s and IsConfirmed == %t ", str, confirmed[i]))
+		logger.WriteToFileOK(fmt.Sprintf("Request generated string %s and IsConfirmed == %t ", str, confirmed[i]))
 	}
 	lock.Unlock()
 	for i := 0; i < stringsPerRequest; i++ {
-		logger.WriteToFile(fmt.Sprintf("Request sending string %s %d ", strings[i], i))
-		result, err := sendRequest(strings[i])
-		logger.WriteToFile(fmt.Sprintf("Request from string %s %d received answer %s ", strings[i], i, result))
-		if err != nil {
-			logger.WriteToFile(err.Error())
-			return
+		if rand.Float32() <= 0.5 {
+			logger.WriteToFileOK(fmt.Sprintf("Request %d Login string %s  ", i, strings[i]))
+			result, err := sendGetRequest(common.LoginURL, strings[i])
+			logger.WriteToFileOK(fmt.Sprintf("Request %d Login string %s  received answer %s ", i, strings[i], result))
+			if err != nil {
+				logger.WriteToFileError(err.Error())
+				return
+			}
+			isNew[i] = result == common.MsgLogged
+			logger.WriteToFileOK(fmt.Sprintf("string %s isNew == %t ", strings[i], isNew[i]))
+		} else {
+			logger.WriteToFileOK(fmt.Sprintf("Request %d IP  of string %s  ", i, strings[i]))
+			result, err := sendGetRequest(common.IPURL, strings[i])
+			logger.WriteToFileOK(fmt.Sprintf("Request %d IP string %s  received answer %s ", i, strings[i], result))
+			if err != nil {
+				logger.WriteToFileError(err.Error())
+				return
+			}
+			if result == common.MsgNotExists {
+				isNew[i] = true
+			}
+			logger.WriteToFileOK(fmt.Sprintf("string %s isNew == %t ", strings[i], isNew[i]))
 		}
-		isNew[i] = result == common.MsgLogged
-		logger.WriteToFile(fmt.Sprintf("string %s isNew == %t ", strings[i], isNew[i]))
 	}
 	for i := 0; i < stringsPerRequest; i++ {
 		if confirmed[i] && isNew[i] {
-			logger.WriteToFile(fmt.Sprintf("string %s was previously added but server says its new ", strings[i]))
+			logger.WriteToFileError(fmt.Sprintf("string %s was previously added but server says its new ", strings[i]))
 			return
 		} else if !confirmed[i] {
 			lock.Lock()
-			logger.WriteToFile(fmt.Sprintf("string %s is confirmed ", strings[i]))
+			logger.WriteToFileOK(fmt.Sprintf("string %s is confirmed ", strings[i]))
 			stored[strings[i]] = true
 			lock.Unlock()
 		}
 	}
-	logger.WriteToFile(fmt.Sprintf("Request %d finished successfully !!! ", id))
 }
 
-func main() {
+func TestClient() {
 	for i := 0; i < requests; i++ {
 		group.Add(1)
 		go func() {
+			var logger = common.NewLogger(fmt.Sprintf("ClientLog%d.txt", i+1))
 			defer group.Done()
-			RequestsSender(i + 1)
+			RequestSender(logger)
+			logger.WriteToFileOK(fmt.Sprintf("Server Requests %d finished !!! ", i+1))
 		}()
 	}
 	group.Wait()

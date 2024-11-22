@@ -11,7 +11,12 @@ func NewLogger(fileID string) *Logger {
 	return &Logger{FileName: fileID}
 }
 
-func (l *Logger) WriteToFile(content string) {
+func (l *Logger) WriteToFileError(content string) {
+	content = MsgError + content
+	l.WriteToFileOK(content)
+}
+
+func (l *Logger) WriteToFileOK(content string) {
 	file, err := os.OpenFile(l.FileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
