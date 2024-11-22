@@ -20,7 +20,10 @@ var logger = common.NewLogger("ServerLog.txt")
 func main() {
 	logger.WriteToFile("Server started")
 	http.HandleFunc("/", handleRequest)
-	http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
@@ -40,5 +43,8 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		logger.WriteToFile(fmt.Sprintf("Response to query %d : Name %s added", queryID, arg))
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(response))
+	_, err := w.Write([]byte(response))
+	if err != nil {
+		panic(err)
+	}
 }

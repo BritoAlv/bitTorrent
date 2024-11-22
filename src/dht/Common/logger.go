@@ -16,9 +16,12 @@ func (l *Logger) WriteToFile(content string) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 	_, err = file.WriteString(content + "\n")
 	if err != nil {
 		panic(err)
+	}
+	err = file.Close()
+	if err != nil {
+		return
 	}
 }
