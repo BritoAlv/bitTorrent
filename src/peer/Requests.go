@@ -80,7 +80,7 @@ func requestPeerListen(notificationChannel chan interface{}, address common.Addr
 func startHandshake(connection net.Conn) error {
 	// TODO: Perform a bittorrent starter-handshake
 	message := []byte("Hi Neighbor!")
-	err := reliableWrite(connection, message)
+	err := common.ReliableWrite(connection, message)
 	return err
 }
 
@@ -122,20 +122,4 @@ func receiveHandshake(notificationChannel chan interface{}, connection net.Conn)
 
 		return nil
 	}
-}
-
-func reliableWrite(connection net.Conn, message []byte) error {
-	totalWritten := 0
-
-	for totalWritten < len(message) {
-		bytesWritten, err := connection.Write(message[totalWritten:])
-
-		if err != nil {
-			return err
-		}
-
-		totalWritten += bytesWritten
-	}
-
-	return nil
 }
