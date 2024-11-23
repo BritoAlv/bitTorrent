@@ -7,7 +7,8 @@ import (
 )
 
 type trackerResponseNotification struct {
-	Response tracker.TrackResponse
+	Response   tracker.TrackResponse
+	Successful bool
 }
 
 type downloadNotification struct{}

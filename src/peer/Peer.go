@@ -9,6 +9,7 @@ import (
 
 // **Peer's structure**
 type Peer struct {
+	Id                  string
 	Address             common.Address
 	TorrentData         common.Torrent
 	Tracker             tracker.Tracker
@@ -23,7 +24,14 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		defer externalWaitGroup.Done()
 	}
 
-	trackerRequest := tracker.TrackRequest{}
+	trackerRequest := tracker.TrackRequest{
+		InfoHash: peer.TorrentData.InfoHash,
+		PeerId:   peer.Id,
+		Ip:       peer.Address.Ip,
+		Port:     peer.Address.Port,
+		Left:     500,
+		Event:    "started",
+	}
 	go requestPeerListen(peer.NotificationChannel, peer.Address)
 	go requestTracker(peer.NotificationChannel, peer.Tracker, trackerRequest, 0)
 	go requestDownload(peer.NotificationChannel, 10)
@@ -66,12 +74,12 @@ func (peer *Peer) handleTrackerResponseNotification(notification trackerResponse
 	}
 
 	go requestTracker(peer.NotificationChannel, peer.Tracker, tracker.TrackRequest{
-		InfoHash: []byte{},
-		PeerId:   "",
-		Ip:       "",
-		Port:     "",
-		Left:     0,
-		Event:    "",
+		InfoHash: peer.TorrentData.InfoHash,
+		PeerId:   peer.Id,
+		Ip:       peer.Address.Ip,
+		Port:     peer.Address.Port,
+		Left:     500,
+		Event:    "started",
 	}, 5)
 }
 

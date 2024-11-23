@@ -13,13 +13,14 @@ func requestTracker(notificationChannel chan interface{}, tracker tracker.Tracke
 	time.Sleep(time.Second * time.Duration(timeToWait)) // Wait for the specified time
 	response, err := tracker.Track(request)
 
-	// TODO: Properly handle tracker's error
 	// Handle tracker's error
 	if err != nil {
-		fmt.Println("An error occurred contacting the tracker")
+		fmt.Println(err.Error())
+		notificationChannel <- trackerResponseNotification{Successful: false}
+		return
 	}
 
-	notificationChannel <- trackerResponseNotification{Response: response}
+	notificationChannel <- trackerResponseNotification{Response: response, Successful: true}
 }
 
 func requestDownload(notificationChannel chan interface{}, timeToWait int) {

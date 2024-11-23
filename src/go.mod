@@ -1,5 +1,5 @@
 module bittorrent
 
-go 1.22.1
+go 1.23.2
 
 require github.com/zeebo/bencode v1.0.0

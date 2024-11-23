@@ -27,14 +27,13 @@ func main() {
 	go mockClient1.Torrent(nil)
 
 	var centralizedTracker tracker.Tracker = tracker.CentralizedTracker{
-		Address: common.Address{
-			Ip:   "localhost",
-			Port: "8000",
-		}}
+		Url: "http://localhost:5000/tracker",
+	}
 
 	notificationChannel := make(chan interface{}, 1000)
 
 	client := peer.Peer{
+		Id: "peer_id",
 		Address: common.Address{
 			Ip:   "localhost",
 			Port: "9000",

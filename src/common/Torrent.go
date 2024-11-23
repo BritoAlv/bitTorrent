@@ -33,10 +33,10 @@ const _PIECES = "pieces"
 // const _COMMENT = "comment"
 
 // File access permission
-const _PERMISSION = 0644 // User can read/write. Groups can only read
+const RW_PERMISSION = 0644 // User can read/write. Groups can only read
 
 func ParseTorrentFile(fileName string) (Torrent, error) {
-	file, err := os.OpenFile(fileName, os.O_RDWR, _PERMISSION)
+	file, err := os.OpenFile(fileName, os.O_RDWR, RW_PERMISSION)
 
 	if err != nil {
 		return Torrent{}, fmt.Errorf("an error occurred while parsing the torrent file: %w", err)
