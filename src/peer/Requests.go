@@ -34,7 +34,7 @@ func requestDownload(notificationChannel chan interface{}, timeToWait int) {
 	notificationChannel <- downloadNotification{}
 }
 
-func requestPeerUp(notificationChannel chan interface{}, address common.Address, id string) {
+func requestPeerUp(notificationChannel chan interface{}, id string, address common.Address) {
 	connection, err := net.Dial("tcp", address.Ip+":"+address.Port)
 
 	// Check if connection could not be established, if so then stop
@@ -50,8 +50,8 @@ func requestPeerUp(notificationChannel chan interface{}, address common.Address,
 	}
 
 	fmt.Println("PEER: Connection established from: " + connection.LocalAddr().String())
+
 	notificationChannel <- peerUpNotification{
-		Address:    address,
 		Id:         id,
 		Connection: connection,
 	}
@@ -107,16 +107,10 @@ func receiveHandshake(notificationChannel chan interface{}, connection net.Conn)
 		}
 
 		id := messageList[0]
-		ip := messageList[1]
-		port := messageList[2]
 
 		fmt.Println("PEER: Received a handshake from " + connection.RemoteAddr().String())
 
 		notificationChannel <- peerUpNotification{
-			Address: common.Address{
-				Ip:   ip,
-				Port: port,
-			},
 			Id:         id,
 			Connection: connection,
 		}

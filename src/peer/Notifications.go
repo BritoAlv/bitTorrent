@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"bittorrent/common"
 	"bittorrent/tracker"
 	"net"
 )
@@ -14,12 +13,11 @@ type trackerResponseNotification struct {
 type downloadNotification struct{}
 
 type peerDownNotification struct {
-	Address common.Address
+	Id string // Peer's Id
 }
 
 type peerUpNotification struct {
-	Address    common.Address
-	Id         string
+	Id         string // Peer's Id
 	Connection net.Conn
 }
 

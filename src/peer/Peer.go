@@ -14,7 +14,7 @@ type Peer struct {
 	TorrentData         common.Torrent
 	Tracker             tracker.Tracker
 	NotificationChannel chan interface{}
-	Peers               map[common.Address]PeerInfo
+	Peers               map[string]PeerInfo // // Peers is a <PeerId, PeerInfo> dictionary
 }
 
 // **Peer's methods**
@@ -62,13 +62,14 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 }
 
 func (peer *Peer) handleTrackerResponseNotification(notification trackerResponseNotification) {
+	// TODO: Properly handle the case when the notification was not successful
 	fmt.Println("PEER: Handling tracker response notification")
 	const PEERS_LOWER_BOUND int = 20
 
 	if len(peer.Peers) < PEERS_LOWER_BOUND {
-		for peerAddress, peerId := range notification.Response.Peers {
-			if _, contains := peer.Peers[peerAddress]; !contains {
-				go requestPeerUp(peer.NotificationChannel, peerAddress, peerId)
+		for id, address := range notification.Response.Peers {
+			if _, contains := peer.Peers[id]; !contains {
+				go requestPeerUp(peer.NotificationChannel, id, address)
 			}
 		}
 	}
@@ -80,7 +81,7 @@ func (peer *Peer) handleTrackerResponseNotification(notification trackerResponse
 		Port:     peer.Address.Port,
 		Left:     500,
 		Event:    "started",
-	}, 5)
+	}, notification.Response.Interval)
 }
 
 func (peer *Peer) handleDownloadNotification() {
@@ -95,16 +96,15 @@ func (peer *Peer) handleDownloadNotification() {
 }
 
 func (peer *Peer) handlePeerUpNotification(notification peerUpNotification) {
-	_, contains := peer.Peers[notification.Address]
+	_, contains := peer.Peers[notification.Id]
 
 	if contains {
 		return
 	}
 
-	peer.Peers[notification.Address] = PeerInfo{
-		Id:         notification.Id,
+	peer.Peers[notification.Id] = PeerInfo{
 		Connection: notification.Connection,
-		Bitfield:   []bool{},
+		Bitfield:   nil,
 		IsChoker:   false,
 		IsChoked:   false,
 	}

@@ -130,11 +130,15 @@ func extractResponse(responseDict map[string]interface{}) (TrackResponse, error)
 	return response, nil
 }
 
-func buildPeersDict(peers map[string]interface{}) (map[common.Address]string, error) {
-	peersDict := make(map[common.Address]string)
+func buildPeersDict(peers map[string]interface{}) (map[string]common.Address, error) {
+	peersDict := make(map[string]common.Address)
 
-	for address, id := range peers {
-		splitAddress := strings.Split(address, ":")
+	for id, address := range peers {
+		addressStr, err := common.CastTo[string](address)
+		if err != nil {
+			return nil, err
+		}
+		splitAddress := strings.Split(addressStr, ":")
 
 		if len(splitAddress) < 2 {
 			return nil, errors.New("invalid address")
@@ -145,12 +149,7 @@ func buildPeersDict(peers map[string]interface{}) (map[common.Address]string, er
 			Port: splitAddress[1],
 		}
 
-		idCasted, err := common.CastTo[string](id)
-		if err != nil {
-			return nil, err
-		}
-
-		peersDict[peerAddress] = idCasted
+		peersDict[id] = peerAddress
 	}
 
 	return peersDict, nil

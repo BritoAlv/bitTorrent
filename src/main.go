@@ -25,6 +25,7 @@ func main() {
 	}
 
 	go mockClient1.Torrent(nil)
+	go mockClient2.Torrent(nil)
 
 	var centralizedTracker tracker.Tracker = tracker.CentralizedTracker{
 		Url: "http://localhost:5000/tracker",
@@ -41,7 +42,7 @@ func main() {
 		TorrentData:         torrent,
 		Tracker:             centralizedTracker,
 		NotificationChannel: notificationChannel,
-		Peers:               make(map[common.Address]peer.PeerInfo),
+		Peers:               make(map[string]peer.PeerInfo),
 	}
 
 	waitGroup := sync.WaitGroup{}
