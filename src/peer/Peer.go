@@ -10,7 +10,7 @@ import (
 // **Peer's structure**
 type Peer struct {
 	Address             common.Address
-	TorrentInfo         TorrentInfo
+	TorrentData         common.Torrent
 	Tracker             tracker.Tracker
 	NotificationChannel chan interface{}
 	Peers               map[common.Address]PeerInfo
@@ -18,9 +18,9 @@ type Peer struct {
 
 // **Peer's methods**
 
-func (peer *Peer) Torrent(peerGroup *sync.WaitGroup) error {
-	if peerGroup != nil {
-		defer peerGroup.Done()
+func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
+	if externalWaitGroup != nil {
+		defer externalWaitGroup.Done()
 	}
 
 	trackerRequest := tracker.TrackRequest{}

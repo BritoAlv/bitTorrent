@@ -32,7 +32,7 @@ func (peer PeerMock) Torrent(waitGroup *sync.WaitGroup) error {
 			return err
 		}
 
-		go HandleConnection(connection)
+		go handleConnection(connection)
 	}
 }
 
@@ -51,12 +51,12 @@ func (peer PeerMock) ActiveTorrent(wg *sync.WaitGroup, address common.Address) e
 	message := "america:" + connection.LocalAddr().String()
 	connection.Write([]byte(message))
 
-	go HandleConnection(connection)
+	go handleConnection(connection)
 
 	return nil
 }
 
-func HandleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	fmt.Println("MOCK " + conn.LocalAddr().String() + ": Connection established with " + conn.RemoteAddr().String())
