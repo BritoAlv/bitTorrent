@@ -1,4 +1,4 @@
-package peer
+package common
 
 type FileInfo struct {
 	Length uint32
