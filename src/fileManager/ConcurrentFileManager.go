@@ -43,7 +43,61 @@ func NewConcurrentFileManager(fileInfos []common.FileInfo) (*ConcurrentFileManag
 }
 
 func (fileWriter *ConcurrentFileManager) Write(start int, bytes *[]byte) error {
-	return errors.New("not implemented")
+	end := start + len(*bytes) - 1
+	targetInterval := [2]int{start, end}
+
+	// Lock interval
+	fileWriter.mutex.Lock()
+	wasIntervalAdded := addInterval(fileWriter.lockedIntervals, targetInterval)
+	fileWriter.mutex.Unlock()
+
+	// Ensure interval is released after method terminates
+	defer func() {
+		fileWriter.mutex.Lock()
+		delete(fileWriter.lockedIntervals, targetInterval)
+		fileWriter.mutex.Unlock()
+	}()
+
+	if !wasIntervalAdded {
+		return errors.New("interval is already taken")
+	}
+
+	bytesWritten := 0
+	for _, metaFile := range fileWriter.files {
+		fileStart := metaFile.Index
+		fileEnd := fileStart + metaFile.Length - 1
+		var properStart, properEnd int
+
+		if start > fileEnd {
+			continue
+		}
+
+		if end < fileStart {
+			break
+		}
+
+		if start >= fileStart {
+			properStart = start - fileStart
+		} else {
+			properStart = 0
+		}
+
+		if end >= fileEnd {
+			properEnd = metaFile.Length - 1
+		} else {
+			properEnd = end - fileStart
+		}
+
+		properLength := properEnd - properStart + 1
+		_, err := metaFile.FileReference.WriteAt((*bytes)[bytesWritten:bytesWritten+properLength], int64(properStart))
+		if err != nil {
+			return err
+		}
+
+		bytesWritten += properLength
+	}
+
+	return nil
 }
 
 func (fileWriter *ConcurrentFileManager) Read(start int, length int) ([]byte, error) {
@@ -51,9 +105,17 @@ func (fileWriter *ConcurrentFileManager) Read(start int, length int) ([]byte, er
 	end := start + length - 1
 	targetInterval := [2]int{start, end}
 
+	// Lock interval
 	fileWriter.mutex.Lock()
 	wasIntervalAdded := addInterval(fileWriter.lockedIntervals, targetInterval)
 	fileWriter.mutex.Unlock()
+
+	// Ensure interval is released after method terminates
+	defer func() {
+		fileWriter.mutex.Lock()
+		delete(fileWriter.lockedIntervals, targetInterval)
+		fileWriter.mutex.Unlock()
+	}()
 
 	if !wasIntervalAdded {
 		return nil, errors.New("interval is already taken")
@@ -92,10 +154,6 @@ func (fileWriter *ConcurrentFileManager) Read(start int, length int) ([]byte, er
 		}
 		bytes = append(bytes, targetBytes...)
 	}
-
-	fileWriter.mutex.Lock()
-	delete(fileWriter.lockedIntervals, targetInterval)
-	fileWriter.mutex.Unlock()
 
 	return bytes, nil
 }
