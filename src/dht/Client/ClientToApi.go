@@ -63,7 +63,8 @@ func speak(source string, logger *common.Logger) {
 }
 
 /*
-when client arrives it has to send a request to the server to authenticate itself.
+when client arrives it has to send a request to the server to sign-up and tell to the others
+its location / ipaddress.
 */
 func register(address string, logger *common.Logger) (string, error) {
 	for {
