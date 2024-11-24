@@ -1,6 +1,9 @@
 package common
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type Logger struct {
 	FileName string
@@ -22,6 +25,7 @@ func (l *Logger) WriteToFileOK(content string) {
 		panic(err)
 	}
 	_, err = file.WriteString(content + "\n")
+	fmt.Println(content)
 	if err != nil {
 		panic(err)
 	}

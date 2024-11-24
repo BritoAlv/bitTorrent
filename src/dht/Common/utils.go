@@ -16,3 +16,10 @@ func GenerateRandomString(length int) (string, error) {
 	}
 	return string(b), nil
 }
+
+func BuildIPRequest(serverUrl string, name string) string {
+	return serverUrl + IPRoute + "?name=" + name
+}
+func BuildLoginRequest(serverUrl string, name string, ip string) string {
+	return serverUrl + LoginRoute + "?name=" + name + "&ip=" + ip
+}
