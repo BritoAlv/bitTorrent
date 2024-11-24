@@ -6,17 +6,22 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 )
 
 type ConcurrentFileManager struct {
-	files []metaFile
+	files           []metaFile
+	mutex           sync.Mutex
+	lockedIntervals map[[2]int]bool
 }
 
 // **Public methods
 
 func NewConcurrentFileManager(fileInfos []common.FileInfo) (*ConcurrentFileManager, error) {
 	fileManager := ConcurrentFileManager{
-		files: []metaFile{},
+		files:           []metaFile{},
+		mutex:           sync.Mutex{},
+		lockedIntervals: map[[2]int]bool{},
 	}
 	fileIndex := 0
 
@@ -37,14 +42,23 @@ func NewConcurrentFileManager(fileInfos []common.FileInfo) (*ConcurrentFileManag
 	return &fileManager, nil
 }
 
-func (fileWriter *ConcurrentFileManager) Write(start int, bytes *[]byte) (bool, error) {
-	return true, errors.New("not implemented")
+func (fileWriter *ConcurrentFileManager) Write(start int, bytes *[]byte) error {
+	return errors.New("not implemented")
 }
 
 func (fileWriter *ConcurrentFileManager) Read(start int, length int) ([]byte, error) {
 	bytes := []byte{}
-
 	end := start + length - 1
+	targetInterval := [2]int{start, end}
+
+	fileWriter.mutex.Lock()
+	wasIntervalAdded := addInterval(fileWriter.lockedIntervals, targetInterval)
+	fileWriter.mutex.Unlock()
+
+	if !wasIntervalAdded {
+		return nil, errors.New("interval is already taken")
+	}
+
 	for _, metaFile := range fileWriter.files {
 		fileStart := metaFile.Index
 		fileEnd := fileStart + metaFile.Length - 1
@@ -79,6 +93,10 @@ func (fileWriter *ConcurrentFileManager) Read(start int, length int) ([]byte, er
 		bytes = append(bytes, targetBytes...)
 	}
 
+	fileWriter.mutex.Lock()
+	delete(fileWriter.lockedIntervals, targetInterval)
+	fileWriter.mutex.Unlock()
+
 	return bytes, nil
 }
 
@@ -99,4 +117,26 @@ func extractFile(fileName string) (*os.File, error) {
 	}
 
 	return file, nil
+}
+
+func checkInterval(intervals map[[2]int]bool, targetInterval [2]int) bool {
+	for interval := range intervals {
+		if intervalContains(interval, targetInterval) {
+			return false
+		}
+	}
+	return true
+}
+
+func addInterval(intervals map[[2]int]bool, targetInterval [2]int) bool {
+	if checkInterval(intervals, targetInterval) {
+		intervals[targetInterval] = true
+		return true
+	}
+	return false
+}
+
+// Checks if interval2 is contained in interval1
+func intervalContains(interval1 [2]int, interval2 [2]int) bool {
+	return interval1[0] <= interval2[0] && interval1[1] >= interval2[1]
 }
