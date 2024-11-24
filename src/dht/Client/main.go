@@ -18,15 +18,30 @@ func main() {
 	if err != nil {
 		return
 	}
+
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
+	done := make(chan struct{})
+
 	go func() {
 		defer wg.Done()
 		speak(name, logger)
+		close(done)
 	}()
+
 	go func() {
 		defer wg.Done()
-		listen(&listener, name, logger)
+		select {
+		case <-done:
+			err := listener.Close()
+			if err != nil {
+				logger.WriteToFileError(fmt.Sprintf("Failed stopping listener,  was using address = %s, error was %s", listener.Addr().String(), err.Error()))
+			}
+			logger.WriteToFileOK(fmt.Sprintf("Succesfully Stopped Listener, was using address = %s", listener.Addr().String()))
+			return
+		default:
+			listen(&listener, name, logger)
+		}
 	}()
 	wg.Wait()
 }
