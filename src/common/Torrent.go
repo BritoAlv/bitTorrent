@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/sha1"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/zeebo/bencode"
@@ -32,6 +33,7 @@ const _PIECES = "pieces"
 // const _ANNOUNCE_LIST = "announce-list"
 // const _COMMENT = "comment"
 
+// TODO: Check about this file access permission and what they actually mean
 // File access permission
 const USER_RW_PERMISSION = 0644 // User can read/write. Groups can only read
 const ALL_RW_PERMISSION = 0777  // All can read/write
@@ -90,6 +92,87 @@ func ParseTorrentFile(fileName string) (Torrent, error) {
 	torrent.InfoHash = infoHash[:]
 
 	return torrent, nil
+}
+
+func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error {
+	file, err := os.OpenFile(path, os.O_RDWR, ALL_RW_PERMISSION)
+	if err != nil {
+		return err
+	}
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	name := file.Name()
+	pieceLength := int(math.Pow(2, 18))
+	length := fileInfo.Size()
+	var totalPieces int
+
+	if length <= int64(pieceLength) {
+		totalPieces = 1
+	} else {
+		totalPieces = int(length) / pieceLength
+		if length%int64(pieceLength) != 0 {
+			totalPieces += 1
+		}
+	}
+
+	pieces := make([]byte, 0, totalPieces*20)
+	buffer := make([]byte, pieceLength)
+
+	start := 0
+	for start < int(length) {
+		bufferLength := len(buffer)
+		end := start + bufferLength - 1
+
+		// Check size of the last buffer
+		if end >= int(length) {
+			buffer = make([]byte, length-int64(start))
+			bufferLength = len(buffer)
+		}
+
+		_, err := file.ReadAt(buffer, int64(start))
+		if err != nil {
+			return err
+		}
+
+		hashedBuffer := sha1.Sum(buffer)
+		pieces = append(pieces, hashedBuffer[0:]...)
+
+		start += bufferLength
+	}
+
+	torrentInf := map[string]interface{}{
+		_NAME:         name,
+		_PIECE_LENGTH: pieceLength,
+		_PIECES:       pieces,
+		_LENGTH:       length,
+	}
+
+	torrent := map[string]interface{}{
+		_ANNOUNCE: name,
+		_INFO:     torrentInf,
+	}
+
+	encodedTorrent, err := bencode.EncodeBytes(torrent)
+	if err != nil {
+		return err
+	}
+
+	torrentPath := "./torrents/" + name + ".torrent"
+	torrentFile, err := os.OpenFile(torrentPath, os.O_CREATE|os.O_RDWR, ALL_RW_PERMISSION)
+	if err != nil {
+		return err
+	}
+
+	err = ReliableWrite(torrentFile, encodedTorrent)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func extractTorrent(torrentDic map[string]interface{}) (Torrent, error) {
