@@ -30,7 +30,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		Ip:       peer.Address.Ip,
 		Port:     peer.Address.Port,
 		Left:     500,
-		Event:    "started",
+		// Event:    "started",
 	}
 	go requestPeerListen(peer.NotificationChannel, peer.Address)
 	go requestTracker(peer.NotificationChannel, peer.Tracker, trackerRequest, 0)
@@ -80,7 +80,7 @@ func (peer *Peer) handleTrackerResponseNotification(notification trackerResponse
 		Ip:       peer.Address.Ip,
 		Port:     peer.Address.Port,
 		Left:     500,
-		Event:    "started",
+		// Event:    "started",
 	}, notification.Response.Interval)
 }
 

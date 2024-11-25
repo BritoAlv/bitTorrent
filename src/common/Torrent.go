@@ -152,7 +152,7 @@ func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error 
 	}
 
 	torrent := map[string]interface{}{
-		_ANNOUNCE: name,
+		_ANNOUNCE: announceUrl,
 		_INFO:     torrentInf,
 	}
 

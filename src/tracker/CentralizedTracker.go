@@ -44,7 +44,7 @@ func (tracker CentralizedTracker) Track(request TrackRequest) (TrackResponse, er
 	values.Set(_IP, request.Ip)
 	values.Set(_PORT, request.Port)
 	values.Set(_LEFT, strconv.Itoa(request.Left))
-	values.Set(_EVENT, request.Event)
+	// values.Set(_EVENT, request.Event)
 	values.Set(_UPLOADED, strconv.Itoa(0))
 	values.Set(_DOWNLOADED, strconv.Itoa(0))
 
