@@ -17,7 +17,7 @@ type ConcurrentFileManager struct {
 
 // **Public methods
 
-func NewConcurrentFileManager(fileInfos []common.FileInfo) (*ConcurrentFileManager, error) {
+func New(fileInfos []common.FileInfo) (FileManager, error) {
 	fileManager := ConcurrentFileManager{
 		files:           []metaFile{},
 		mutex:           sync.Mutex{},

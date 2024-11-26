@@ -2,6 +2,7 @@ package peer
 
 import (
 	"bittorrent/common"
+	"bittorrent/fileManager"
 	"bittorrent/tracker"
 	"fmt"
 	"sync"
@@ -14,20 +15,43 @@ type Peer struct {
 	// Private properties
 	address             common.Address
 	torrentData         common.Torrent
-	tracker             tracker.Tracker
 	notificationChannel chan interface{}
 	peers               map[string]PeerInfo // Peers is a <PeerId, PeerInfo> dictionary
+	tracker             tracker.Tracker
+	fileManager         fileManager.FileManager
+	getAbsoluteOffset   func(int, int) int
 }
 
-func New(id string, address common.Address, torrent common.Torrent, tracker tracker.Tracker) Peer {
+func New(id string, address common.Address, torrent common.Torrent) (Peer, error) {
 	peer := Peer{}
 	peer.Id = id
 	peer.address = address
 	peer.torrentData = torrent
-	peer.tracker = tracker
 	peer.notificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
-	return peer
+
+	peer.tracker = tracker.CentralizedTracker{Url: torrent.Announce}
+
+	var files []common.FileInfo
+	if torrent.Files == nil {
+		files = []common.FileInfo{{
+			Length: int(torrent.Length),
+			Path:   "./" + torrent.Name,
+		}}
+	} else {
+		files = torrent.Files
+	}
+
+	var err error
+	peer.fileManager, err = fileManager.New(files)
+	if err != nil {
+		return peer, err
+	}
+
+	peer.getAbsoluteOffset = func(index int, offset int) int {
+		return index*int(torrent.PieceLength) + offset
+	}
+	return peer, nil
 }
 
 // **Peer's methods**

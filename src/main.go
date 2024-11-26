@@ -3,7 +3,6 @@ package main
 import (
 	"bittorrent/common"
 	"bittorrent/peer"
-	"bittorrent/tracker"
 	"fmt"
 	"sync"
 	"time"
@@ -27,17 +26,19 @@ func main() {
 	go mockClient1.Torrent(nil)
 	go mockClient2.Torrent(nil)
 
+	id := "peer-id"
 	address := common.Address{Ip: "localhost", Port: "9000"}
-	var centralizedTracker tracker.Tracker = tracker.CentralizedTracker{
-		Url: torrent.Announce,
-	}
 
-	client := peer.New(
-		"peer-id",
+	client, err := peer.New(
+		id,
 		address,
 		torrent,
-		centralizedTracker,
 	)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(1)
