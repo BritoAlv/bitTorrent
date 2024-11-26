@@ -108,16 +108,7 @@ func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error 
 	name := file.Name()
 	pieceLength := int(math.Pow(2, 18))
 	length := fileInfo.Size()
-	var totalPieces int
-
-	if length <= int64(pieceLength) {
-		totalPieces = 1
-	} else {
-		totalPieces = int(length) / pieceLength
-		if length%int64(pieceLength) != 0 {
-			totalPieces += 1
-		}
-	}
+	totalPieces := GetTotalPieces(int(length), pieceLength)
 
 	pieces := make([]byte, 0, totalPieces*20)
 	buffer := make([]byte, pieceLength)
@@ -173,6 +164,20 @@ func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error 
 	}
 
 	return nil
+}
+
+func GetTotalPieces(length int, pieceLength int) int {
+	var totalPieces int
+
+	if length <= pieceLength {
+		totalPieces = 1
+	} else {
+		totalPieces = length / pieceLength
+		if length%pieceLength != 0 {
+			totalPieces += 1
+		}
+	}
+	return totalPieces
 }
 
 func extractTorrent(torrentDic map[string]interface{}) (Torrent, error) {
