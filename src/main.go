@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	torrent, err := common.ParseTorrentFile("ubuntu-22.04.5-desktop-amd64.iso.torrent")
+	torrent, err := common.ParseTorrentFile("server.py.torrent")
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -27,32 +27,24 @@ func main() {
 	go mockClient1.Torrent(nil)
 	go mockClient2.Torrent(nil)
 
+	address := common.Address{Ip: "localhost", Port: "9000"}
 	var centralizedTracker tracker.Tracker = tracker.CentralizedTracker{
-		Url: "http://localhost:5000/tracker",
+		Url: torrent.Announce,
 	}
 
-	notificationChannel := make(chan interface{}, 1000)
-
-	client := peer.Peer{
-		Id: "peer_id",
-		Address: common.Address{
-			Ip:   "localhost",
-			Port: "9000",
-		},
-		TorrentData:         torrent,
-		Tracker:             centralizedTracker,
-		NotificationChannel: notificationChannel,
-		Peers:               make(map[string]peer.PeerInfo),
-	}
+	client := peer.New(
+		"peer-id",
+		address,
+		torrent,
+		centralizedTracker,
+	)
 
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(1)
 	go client.Torrent(&waitGroup)
 
 	time.Sleep(time.Second * time.Duration(10))
-	go mockClient2.ActiveTorrent(nil, client.Address)
-	// notificationChannel <- peer.KillNotification{}
+	go mockClient2.ActiveTorrent(nil, address)
 
 	waitGroup.Wait()
-	fmt.Println(client.Peers)
 }

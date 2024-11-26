@@ -57,7 +57,7 @@ func requestPeerUp(notificationChannel chan interface{}, id string, address comm
 	}
 }
 
-func requestPeerListen(notificationChannel chan interface{}, address common.Address) {
+func requestListen(notificationChannel chan interface{}, address common.Address) {
 	listener, err := net.Listen("tcp", address.Ip+":"+address.Port)
 
 	fmt.Println("PEER: Start listening")
