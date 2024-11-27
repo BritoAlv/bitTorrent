@@ -148,7 +148,18 @@ func (fileWriter *ConcurrentFileManager) Read(start int, length int) ([]byte, er
 
 		properLength := properEnd - properStart + 1
 		targetBytes := make([]byte, properLength)
-		_, err := metaFile.FileReference.ReadAt(targetBytes, int64(properStart))
+
+		// Check that the file is big enough to perform the reading, if not then return a "OutsideOfFileBounds" error
+		fileStat, err := metaFile.FileReference.Stat()
+		if err != nil {
+			return nil, err
+		}
+
+		if fileStat.Size() < int64(len(targetBytes)+properStart) {
+			return nil, OutsideOfFileBoundsError{}
+		}
+
+		_, err = metaFile.FileReference.ReadAt(targetBytes, int64(properStart))
 		if err != nil {
 			return nil, err
 		}
