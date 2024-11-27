@@ -52,7 +52,7 @@ func New(length int, pieceLength int, chunkLength int) PieceManager {
 		for j := range chunksPerPiece {
 			manager.chunks[i][j] = true
 		}
-		manager.uncheckedChunks[i] = chunksPerPiece
+		manager.uncheckedChunks[i] = 0
 	}
 
 	return &manager

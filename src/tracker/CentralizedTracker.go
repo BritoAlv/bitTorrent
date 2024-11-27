@@ -29,8 +29,6 @@ const _FAILURE_REASON = "failure_reason"
 const _INTERVAL = "interval"
 const _PEERS = "peers"
 
-const _BUFFER_SIZE = 1024 * 10 // 10 Kilobytes
-
 func (tracker CentralizedTracker) Track(request TrackRequest) (TrackResponse, error) {
 	url, err := url.Parse(tracker.Url)
 
@@ -69,7 +67,7 @@ func (tracker CentralizedTracker) Track(request TrackRequest) (TrackResponse, er
 func parseResponse(body io.ReadCloser) (TrackResponse, error) {
 	defer body.Close()
 
-	buffer := make([]byte, _BUFFER_SIZE)
+	buffer := make([]byte, common.BUFFER_SIZE)
 	bytesRead, err := body.Read(buffer)
 
 	if err != nil && err.Error() != "EOF" {
