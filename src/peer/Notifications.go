@@ -5,20 +5,61 @@ import (
 	"net"
 )
 
-type trackerResponseNotification struct {
+type trackNotification struct {
 	Response   tracker.TrackResponse
 	Successful bool
 }
 
 type downloadNotification struct{}
 
-type peerDownNotification struct {
-	Id string // Peer's Id
-}
+type killNotification struct{}
 
-type peerUpNotification struct {
-	Id         string // Peer's Id
+type addPeerNotification struct {
+	PeerId     string
 	Connection net.Conn
 }
 
-type killNotification struct{}
+type removePeerNotification struct {
+	PeerId string
+}
+
+type peerRequestNotification struct {
+	PeerId string
+	Index  int
+	Offset int
+	Length int
+}
+
+type peerCancelNotification struct {
+	PeerId string
+	Index  int
+	Offset int
+	Length int
+}
+
+type peerPieceNotification struct {
+	PeerId string
+	Index  int
+	Offset int
+	Bytes  []byte
+}
+
+type peerHaveNotification struct {
+	PeerId string
+	Index  int
+}
+
+type peerBitfieldNotification struct {
+	PeerId   string
+	Bitfield []bool
+}
+
+type peerChokeNotification struct {
+	PeerId string
+	Choke  bool
+}
+
+type peerInterestedNotification struct {
+	PeerId     string
+	Interested bool
+}
