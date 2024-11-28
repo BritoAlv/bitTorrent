@@ -62,6 +62,20 @@ func (manager *fixedPieceManager) ChunkLength() int {
 	return manager.chunkLength
 }
 
+func (manager *fixedPieceManager) Bitfield() []bool {
+	bitfield := make([]bool, len(manager.uncheckedChunks))
+
+	for index, uncheckedChunks := range manager.uncheckedChunks {
+		if uncheckedChunks == 0 {
+			bitfield[index] = true
+		} else {
+			bitfield[index] = false
+		}
+	}
+
+	return bitfield
+}
+
 func (manager *fixedPieceManager) CheckChunk(index int, offset int) bool {
 	chunkIndex := offset / manager.chunkLength
 	if manager.chunks[index][chunkIndex] {

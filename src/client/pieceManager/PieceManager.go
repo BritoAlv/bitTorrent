@@ -2,6 +2,7 @@ package pieceManager
 
 type PieceManager interface {
 	ChunkLength() int
+	Bitfield() []bool
 	CheckChunk(index int, offset int) bool
 	UncheckPiece(index int)
 	GetUncheckedPieces() []int
