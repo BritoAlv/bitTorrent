@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-type ConcurrentFileManager struct {
+type concurrentFileManager struct {
 	files           []metaFile
 	mutex           sync.Mutex
 	lockedIntervals map[[2]int]bool
@@ -18,7 +18,7 @@ type ConcurrentFileManager struct {
 // **Public methods
 
 func New(fileInfos []common.FileInfo) (FileManager, error) {
-	fileManager := ConcurrentFileManager{
+	fileManager := concurrentFileManager{
 		files:           []metaFile{},
 		mutex:           sync.Mutex{},
 		lockedIntervals: map[[2]int]bool{},
@@ -42,7 +42,7 @@ func New(fileInfos []common.FileInfo) (FileManager, error) {
 	return &fileManager, nil
 }
 
-func (fileWriter *ConcurrentFileManager) Write(start int, bytes *[]byte) error {
+func (fileWriter *concurrentFileManager) Write(start int, bytes *[]byte) error {
 	end := start + len(*bytes) - 1
 	targetInterval := [2]int{start, end}
 
@@ -100,7 +100,7 @@ func (fileWriter *ConcurrentFileManager) Write(start int, bytes *[]byte) error {
 	return nil
 }
 
-func (fileWriter *ConcurrentFileManager) Read(start int, length int) ([]byte, error) {
+func (fileWriter *concurrentFileManager) Read(start int, length int) ([]byte, error) {
 	bytes := []byte{}
 	end := start + length - 1
 	targetInterval := [2]int{start, end}

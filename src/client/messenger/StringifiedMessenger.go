@@ -58,23 +58,27 @@ func encodeHandshakeMessage(message HandshakeMessage) []byte {
 }
 
 func encodePayloadLessMessage(messageType int) []byte {
-	message := []byte(strconv.Itoa(messageType) + ";")
+	message := []byte(strconv.Itoa(messageType))
 	return append(getLength(message), message...)
 }
 
 func encodeHaveMessage(message HaveMessage) []byte {
-	messageBytes := []byte(strconv.Itoa(_HAVE_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";")
+	messageBytes := []byte(strconv.Itoa(_HAVE_MESSAGE) + ";" + strconv.Itoa(message.Index))
 	return append(getLength(messageBytes), []byte(messageBytes)...)
 }
 
 func encodeBitfieldMessage(message BitfieldMessage) []byte {
 	messageStr := strconv.Itoa(_BITFIELD_MESSAGE) + ";"
 
-	for _, bit := range message.Bitfield {
+	for i, bit := range message.Bitfield {
 		if bit {
-			messageStr += "1;"
+			messageStr += "1"
 		} else {
-			messageStr += "0;"
+			messageStr += "0"
+		}
+
+		if i < len(message.Bitfield)-1 {
+			messageStr += ";"
 		}
 	}
 
@@ -84,7 +88,7 @@ func encodeBitfieldMessage(message BitfieldMessage) []byte {
 }
 
 func encodeRequestMessage(message RequestMessage) []byte {
-	messageBytes := []byte(strconv.Itoa(_REQUEST_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";" + strconv.Itoa(message.Offset) + ";" + strconv.Itoa(message.Length) + ";")
+	messageBytes := []byte(strconv.Itoa(_REQUEST_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";" + strconv.Itoa(message.Offset) + ";" + strconv.Itoa(message.Length))
 	return append(getLength(messageBytes), messageBytes...)
 }
 
@@ -97,7 +101,7 @@ func encodePieceMessage(message PieceMessage) []byte {
 }
 
 func encodeCancelMessage(message CancelMessage) []byte {
-	messageBytes := []byte(strconv.Itoa(_CANCEL_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";" + strconv.Itoa(message.Offset) + ";" + strconv.Itoa(message.Length) + ";")
+	messageBytes := []byte(strconv.Itoa(_CANCEL_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";" + strconv.Itoa(message.Offset) + ";" + strconv.Itoa(message.Length))
 	return append(getLength(messageBytes), messageBytes...)
 }
 
@@ -132,16 +136,13 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 	}
 
 	messageStr := string(messageBytes)
-	messageSplits := strings.Split(messageStr, ";")
+	messageSplits := strings.SplitN(messageStr, ";", 4)
 	messageType, err := strconv.Atoi(messageSplits[0])
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Remove last empty-split if it's present
-	if messageSplits[len(messageSplits)-1] == "" {
-		messageSplits = messageSplits[:len(messageSplits)-1]
-	}
 	// Ignore first type-split for now on
 	messageSplits = messageSplits[1:]
 

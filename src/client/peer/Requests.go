@@ -1,9 +1,11 @@
 package peer
 
 import (
+	"bittorrent/client/fileManager"
 	"bittorrent/client/messenger"
 	"bittorrent/client/tracker"
 	"bittorrent/common"
+	"crypto/sha1"
 	"fmt"
 	"net"
 	"time"
@@ -192,7 +194,7 @@ func performSendRequestToPeer(notificationChannel chan interface{}, connection n
 	})
 
 	if err != nil {
-		fmt.Println("ERROR: an error occurred while sending a request to neighbor: " + err.Error())
+		fmt.Println("ERROR: an error occurred while sending a request-message to neighbor: " + err.Error())
 		notificationChannel <- removePeerNotification{PeerId: peerId}
 		return
 	}
@@ -206,10 +208,82 @@ func performSendBitfieldToPeer(notificationChannel chan interface{}, connection 
 	err := _messenger.Write(connection, messenger.BitfieldMessage{Bitfield: bitfield})
 
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("ERROR: an error occurred while sending a bitfield-message to neighbor: " + err.Error())
 		notificationChannel <- removePeerNotification{PeerId: peerId}
 		return
 	}
 
 	fmt.Printf("LOG: send a bitfield-message to neighbor: %v -> %v\n", peerId, bitfield)
+}
+
+func performSendPieceToPeer(notificationChannel chan interface{}, connection net.Conn, _fileManager fileManager.FileManager, peerId string, index int, offset int, length int, absoluteOffset int) {
+	_messenger := messenger.New()
+
+	bytes, err := _fileManager.Read(absoluteOffset, length)
+	if err != nil {
+		fmt.Println("ERROR: an error occurred while reading from file" + err.Error())
+		return
+	}
+
+	err = _messenger.Write(connection, messenger.PieceMessage{
+		Index:  index,
+		Offset: offset,
+		Bytes:  bytes,
+	})
+
+	if err != nil {
+		fmt.Println("ERROR: an error occurred while sending a request-message to neighbor: " + peerId)
+		notificationChannel <- removePeerNotification{PeerId: peerId}
+		return
+	}
+}
+
+func performWrite(notificationChannel chan interface{}, _fileManager fileManager.FileManager, index int, offset int, absoluteOffset int, bytes []byte) {
+	err := _fileManager.Write(absoluteOffset, &bytes)
+	if err != nil {
+		fmt.Println("ERROR: an error occurred while writing the file")
+		return
+	}
+
+	notificationChannel <- writeNotification{
+		Index:  index,
+		Offset: offset,
+	}
+}
+
+func performVerifyPiece(notificationChannel chan interface{}, _fileManager fileManager.FileManager, index int, pieceAbsoluteOffset int, pieceLength int, pieces []byte) {
+	hash, err := getPieceHash(_fileManager, index, pieceAbsoluteOffset, pieceLength)
+	if err != nil {
+		return
+	}
+
+	isValidHash := checkPieceHash(index, hash, pieces)
+	if isValidHash {
+		notificationChannel <- pieceVerificationNotification{Index: index, Verified: true}
+	} else {
+		notificationChannel <- pieceVerificationNotification{Index: index, Verified: false}
+	}
+}
+
+func getPieceHash(_fileManager fileManager.FileManager, index int, pieceAbsoluteOffset int, pieceLength int) ([20]byte, error) {
+	bytes, err := _fileManager.Read(pieceAbsoluteOffset, pieceLength)
+
+	if err != nil {
+		// Check if the reading attempt was outside of the file bounds, if so the expected bytes are not yet downloaded
+		_, isOutsideOfFileBounds := err.(fileManager.OutsideOfFileBoundsError)
+
+		if isOutsideOfFileBounds {
+			bytes = []byte{}
+		} else {
+			return [20]byte{}, err
+		}
+	}
+
+	return sha1.Sum(bytes), nil
+}
+
+func checkPieceHash(index int, hash [20]byte, pieces []byte) bool {
+	hashIndex := index * 20
+	pieceHash := pieces[hashIndex : hashIndex+20]
+	return hash == [20]byte(pieceHash)
 }
