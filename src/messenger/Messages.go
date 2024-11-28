@@ -1,5 +1,10 @@
 package messenger
 
+type HandshakeMessage struct {
+	Infohash []byte
+	Id       string
+}
+
 type ChokeMessage struct{}
 
 type UnchokeMessage struct{}

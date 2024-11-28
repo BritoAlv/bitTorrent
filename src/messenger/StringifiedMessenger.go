@@ -17,29 +17,44 @@ func New() Messenger {
 
 //** Write implementation
 
-func (manager stringifiedMessenger) Write(message interface{}) ([]byte, error) {
+func (manager stringifiedMessenger) Write(writer io.Writer, message interface{}) error {
+	var bytes []byte
 	switch castedMessage := message.(type) {
+	case HandshakeMessage:
+		bytes = encodeHandshakeMessage(castedMessage)
 	case ChokeMessage:
-		return encodePayloadLessMessage(_CHOKE_MESSAGE), nil
+		bytes = encodePayloadLessMessage(_CHOKE_MESSAGE)
 	case UnchokeMessage:
-		return encodePayloadLessMessage(_UNCHOKE_MESSAGE), nil
+		bytes = encodePayloadLessMessage(_UNCHOKE_MESSAGE)
 	case InterestedMessage:
-		return encodePayloadLessMessage(_INTERESTED_MESSAGE), nil
+		bytes = encodePayloadLessMessage(_INTERESTED_MESSAGE)
 	case NotInterestedMessage:
-		return encodePayloadLessMessage(_NOT_INTERESTED_MESSAGE), nil
+		bytes = encodePayloadLessMessage(_NOT_INTERESTED_MESSAGE)
 	case HaveMessage:
-		return encodeHaveMessage(castedMessage), nil
+		bytes = encodeHaveMessage(castedMessage)
 	case BitfieldMessage:
-		return encodeBitfieldMessage(castedMessage), nil
+		bytes = encodeBitfieldMessage(castedMessage)
 	case RequestMessage:
-		return encodeRequestMessage(castedMessage), nil
+		bytes = encodeRequestMessage(castedMessage)
 	case PieceMessage:
-		return encodePieceMessage(castedMessage), nil
+		bytes = encodePieceMessage(castedMessage)
 	case CancelMessage:
-		return encodeCancelMessage(castedMessage), nil
+		bytes = encodeCancelMessage(castedMessage)
 	default:
-		return nil, errors.New("invalid message type")
+		return errors.New("invalid message type")
 	}
+
+	err := common.ReliableWrite(writer, bytes)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func encodeHandshakeMessage(message HandshakeMessage) []byte {
+	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + ";")
+	messageBytes = append(messageBytes, message.Infohash...)
+	return append(getLength(messageBytes), messageBytes...)
 }
 
 func encodePayloadLessMessage(messageType int) []byte {
@@ -123,8 +138,16 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 		return nil, err
 	}
 
-	messageSplits = messageSplits[1:] // Ignore type split for now on
+	// Remove last empty-split if it's present
+	if messageSplits[len(messageSplits)-1] == "" {
+		messageSplits = messageSplits[:len(messageSplits)-1]
+	}
+	// Ignore first type-split for now on
+	messageSplits = messageSplits[1:]
+
 	switch messageType {
+	case _HANDSHAKE_MESSAGE:
+		return decodeHandshakeMessage(messageSplits)
 	case _CHOKE_MESSAGE:
 		return ChokeMessage{}, nil
 	case _UNCHOKE_MESSAGE:
@@ -146,6 +169,20 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 	default:
 		return nil, errors.New("invalid message type")
 	}
+}
+
+func decodeHandshakeMessage(messageSplits []string) (HandshakeMessage, error) {
+	if len(messageSplits) != 2 {
+		return HandshakeMessage{}, errors.New("invalid handshake-message payload")
+	}
+
+	id := string(messageSplits[0])
+	infohash := []byte(messageSplits[1])
+
+	return HandshakeMessage{
+		Infohash: infohash,
+		Id:       id,
+	}, nil
 }
 
 func decodeHaveMessage(messageSplits []string) (HaveMessage, error) {
