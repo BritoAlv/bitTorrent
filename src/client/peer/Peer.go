@@ -267,7 +267,7 @@ func (peer *Peer) handlePeerBitfieldNotification(notification peerBitfieldNotifi
 	}
 
 	info.Bitfield = notification.Bitfield
-	fmt.Printf("LOG: a bitfield-message was received from: %v -> %v \n", notification.PeerId, notification.Bitfield)
+	fmt.Printf("LOG: a bitfield-message was received from: %v\n", notification.PeerId)
 }
 
 func (peer *Peer) handlePeerPieceNotification(notification peerPieceNotification) {

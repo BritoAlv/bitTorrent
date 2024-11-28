@@ -205,6 +205,7 @@ func decodeHaveMessage(messageSplits []string) (HaveMessage, error) {
 }
 
 func decodeBitfieldMessage(messageSplits []string) (BitfieldMessage, error) {
+	messageSplits = append(messageSplits[:2], strings.Split(messageSplits[2], ";")...)
 	bitfield := []bool{}
 	for _, bit := range messageSplits {
 		if bit == "1" {

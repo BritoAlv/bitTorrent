@@ -213,7 +213,7 @@ func performSendBitfieldToPeer(notificationChannel chan interface{}, connection 
 		return
 	}
 
-	fmt.Printf("LOG: send a bitfield-message to neighbor: %v -> %v\n", peerId, bitfield)
+	fmt.Printf("LOG: send a bitfield-message to neighbor: %v\n", peerId)
 }
 
 func performSendPieceToPeer(notificationChannel chan interface{}, connection net.Conn, _fileManager fileManager.FileManager, peerId string, index int, offset int, length int, absoluteOffset int) {
