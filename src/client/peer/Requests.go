@@ -1,9 +1,9 @@
 package peer
 
 import (
+	"bittorrent/client/messenger"
+	"bittorrent/client/tracker"
 	"bittorrent/common"
-	"bittorrent/messenger"
-	"bittorrent/tracker"
 	"fmt"
 	"net"
 	"slices"

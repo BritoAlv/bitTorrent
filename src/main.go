@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bittorrent/client/peer"
 	"bittorrent/common"
-	"bittorrent/peer"
 	"fmt"
 	"sync"
 )
