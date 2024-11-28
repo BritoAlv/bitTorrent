@@ -53,7 +53,7 @@ func (manager stringifiedMessenger) Write(writer io.Writer, message interface{})
 
 func encodeHandshakeMessage(message HandshakeMessage) []byte {
 	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + ";")
-	messageBytes = append(messageBytes, message.Infohash...)
+	messageBytes = append(messageBytes, message.Infohash[:]...)
 	return append(getLength(messageBytes), messageBytes...)
 }
 
@@ -177,7 +177,12 @@ func decodeHandshakeMessage(messageSplits []string) (HandshakeMessage, error) {
 	}
 
 	id := string(messageSplits[0])
-	infohash := []byte(messageSplits[1])
+
+	infohashSlice := []byte(messageSplits[1])
+	if len(infohashSlice) != 20 {
+		return HandshakeMessage{}, errors.New("invalid handshake-message payload")
+	}
+	infohash := [20]byte(infohashSlice)
 
 	return HandshakeMessage{
 		Infohash: infohash,

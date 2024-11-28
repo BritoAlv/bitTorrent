@@ -6,7 +6,6 @@ import (
 	"bittorrent/common"
 	"fmt"
 	"net"
-	"slices"
 	"time"
 )
 
@@ -33,7 +32,7 @@ func performDownload(notificationChannel chan interface{}, timeToWait int) {
 	notificationChannel <- downloadNotification{}
 }
 
-func performAddPeer(notificationChannel chan interface{}, sourceId string, targetId string, address common.Address, infohash []byte) {
+func performAddPeer(notificationChannel chan interface{}, sourceId string, targetId string, address common.Address, infohash [20]byte) {
 	connection, err := net.Dial("tcp", address.Ip+":"+address.Port)
 
 	// Check if connection could not be established, if so then stop
@@ -55,7 +54,7 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 	}
 }
 
-func performListen(notificationChannel chan interface{}, address common.Address, sourceId string, infohash []byte) {
+func performListen(notificationChannel chan interface{}, address common.Address, sourceId string, infohash [20]byte) {
 	listener, err := net.Listen("tcp", address.Ip+":"+address.Port)
 
 	fmt.Println("PEER: Start listening")
@@ -77,7 +76,7 @@ func performListen(notificationChannel chan interface{}, address common.Address,
 	}
 }
 
-func performReadFromPeer(notificationChannel chan interface{}, connection net.Conn, active bool, sourceId string, targetId string, infohash []byte) {
+func performReadFromPeer(notificationChannel chan interface{}, connection net.Conn, active bool, sourceId string, targetId string, infohash [20]byte) {
 	_messenger := messenger.New()
 	wasHandshakeMade := false
 
@@ -93,7 +92,7 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 		switch castedMessage := message.(type) {
 		case messenger.HandshakeMessage:
 			if !wasHandshakeMade {
-				if active && (targetId != castedMessage.Id || slices.Compare(infohash, castedMessage.Infohash) != 0) {
+				if active && (targetId != castedMessage.Id || infohash != castedMessage.Infohash) {
 					fmt.Println("PEER: Not expected id or not expected infohash")
 					return
 				}

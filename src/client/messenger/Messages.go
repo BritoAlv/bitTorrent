@@ -1,7 +1,7 @@
 package messenger
 
 type HandshakeMessage struct {
-	Infohash []byte
+	Infohash [20]byte
 	Id       string
 }
 

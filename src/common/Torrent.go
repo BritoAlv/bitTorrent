@@ -10,10 +10,10 @@ import (
 )
 
 type Torrent struct {
-	Announce    string // Url of the tracker
-	InfoHash    []byte // Info-hash of the .torrent file
-	Name        string // Suggested name to save the file (or directory) as. It is purely advisory.
-	PieceLength int64  // The number of bytes in each piece the file is split into
+	Announce    string   // Url of the tracker
+	InfoHash    [20]byte // Info-hash of the .torrent file
+	Name        string   // Suggested name to save the file (or directory) as. It is purely advisory.
+	PieceLength int64    // The number of bytes in each piece the file is split into
 	Pieces      []byte
 	Length      int64      // It's present when the download represents a single file
 	Files       []FileInfo // It's present when the download represents a directory (if not Files == nil). It represents a set of files which go in a directory structure
@@ -89,7 +89,7 @@ func ParseTorrentFile(fileName string) (Torrent, error) {
 
 	infoHash := sha1.Sum(torrentInfoBytes)
 
-	torrent.InfoHash = infoHash[:]
+	torrent.InfoHash = infoHash
 
 	return torrent, nil
 }
@@ -219,7 +219,7 @@ func extractTorrent(torrentDic map[string]interface{}) (Torrent, error) {
 
 	return Torrent{
 		Announce:    announce,
-		InfoHash:    nil,
+		InfoHash:    [20]byte{},
 		Name:        name,
 		PieceLength: pieceLength,
 		Pieces:      []byte(pieces),

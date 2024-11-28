@@ -23,7 +23,8 @@ const _PORT = "port"
 const _UPLOADED = "uploaded"
 const _DOWNLOADED = "downloaded"
 const _LEFT = "left"
-const _EVENT = "event"
+
+// const _EVENT = "event"
 
 const _FAILURE_REASON = "failure_reason"
 const _INTERVAL = "interval"
@@ -37,7 +38,7 @@ func (tracker CentralizedTracker) Track(request common.TrackRequest) (common.Tra
 	}
 
 	values := url.Query()
-	values.Set(_INFO_HASH, string(request.InfoHash))
+	values.Set(_INFO_HASH, string(request.InfoHash[:]))
 	values.Set(_PEER_ID, request.PeerId)
 	values.Set(_IP, request.Ip)
 	values.Set(_PORT, request.Port)
