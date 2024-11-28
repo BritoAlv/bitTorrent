@@ -79,7 +79,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		defer externalWaitGroup.Done()
 	}
 
-	trackerRequest := tracker.TrackRequest{
+	trackerRequest := common.TrackRequest{
 		InfoHash: peer.torrentData.InfoHash,
 		PeerId:   peer.Id,
 		Ip:       peer.address.Ip,
@@ -143,7 +143,7 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 		}
 	}
 
-	go performTrack(peer.notificationChannel, peer.tracker, tracker.TrackRequest{
+	go performTrack(peer.notificationChannel, peer.tracker, common.TrackRequest{
 		InfoHash: peer.torrentData.InfoHash,
 		PeerId:   peer.Id,
 		Ip:       peer.address.Ip,

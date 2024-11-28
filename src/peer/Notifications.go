@@ -1,12 +1,12 @@
 package peer
 
 import (
-	"bittorrent/tracker"
+	"bittorrent/common"
 	"net"
 )
 
 type trackNotification struct {
-	Response   tracker.TrackResponse
+	Response   common.TrackResponse
 	Successful bool
 }
 

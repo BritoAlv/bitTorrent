@@ -1,4 +1,4 @@
-package tracker
+package common
 
 type TrackRequest struct {
 	InfoHash []byte // The 20 byte sha1 hash of the bencoded form of the info value from the metainfo(.torrent) file

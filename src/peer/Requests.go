@@ -14,7 +14,7 @@ const _REQUEST_MESSAGE = 6
 
 const _HANDSHAKE_LENGTH = 30
 
-func performTrack(notificationChannel chan interface{}, tracker tracker.Tracker, request tracker.TrackRequest, timeToWait int) {
+func performTrack(notificationChannel chan interface{}, tracker tracker.Tracker, request common.TrackRequest, timeToWait int) {
 	time.Sleep(time.Second * time.Duration(timeToWait)) // Wait for the specified time
 	response, err := tracker.Track(request)
 

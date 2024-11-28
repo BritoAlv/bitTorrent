@@ -29,11 +29,11 @@ const _FAILURE_REASON = "failure_reason"
 const _INTERVAL = "interval"
 const _PEERS = "peers"
 
-func (tracker CentralizedTracker) Track(request TrackRequest) (TrackResponse, error) {
+func (tracker CentralizedTracker) Track(request common.TrackRequest) (common.TrackResponse, error) {
 	url, err := url.Parse(tracker.Url)
 
 	if err != nil {
-		return TrackResponse{}, fmt.Errorf("an error occurred while contacting tracker: %w", err)
+		return common.TrackResponse{}, fmt.Errorf("an error occurred while contacting tracker: %w", err)
 	}
 
 	values := url.Query()
@@ -52,26 +52,26 @@ func (tracker CentralizedTracker) Track(request TrackRequest) (TrackResponse, er
 	httpResponse, err := http.Get(url.String())
 
 	if err != nil {
-		return TrackResponse{}, fmt.Errorf("an error occurred while contacting tracker: %w", err)
+		return common.TrackResponse{}, fmt.Errorf("an error occurred while contacting tracker: %w", err)
 	}
 
 	response, err := parseResponse(httpResponse.Body)
 
 	if err != nil {
-		return TrackResponse{}, fmt.Errorf("an error occurred while contacting tracker: %w", err)
+		return common.TrackResponse{}, fmt.Errorf("an error occurred while contacting tracker: %w", err)
 	}
 
 	return response, nil
 }
 
-func parseResponse(body io.ReadCloser) (TrackResponse, error) {
+func parseResponse(body io.ReadCloser) (common.TrackResponse, error) {
 	defer body.Close()
 
 	buffer := make([]byte, common.BUFFER_SIZE)
 	bytesRead, err := body.Read(buffer)
 
 	if err != nil && err.Error() != "EOF" {
-		return TrackResponse{}, err
+		return common.TrackResponse{}, err
 	}
 
 	responseBytes := buffer[:bytesRead]
@@ -79,47 +79,47 @@ func parseResponse(body io.ReadCloser) (TrackResponse, error) {
 
 	err = json.Unmarshal(responseBytes, &responseDict)
 	if err != nil {
-		return TrackResponse{}, err
+		return common.TrackResponse{}, err
 	}
 
 	response, err := extractResponse(responseDict)
 	if err != nil {
-		return TrackResponse{}, err
+		return common.TrackResponse{}, err
 	}
 
 	return response, nil
 }
 
-func extractResponse(responseDict map[string]interface{}) (TrackResponse, error) {
+func extractResponse(responseDict map[string]interface{}) (common.TrackResponse, error) {
 	failureReason, isPresentFailureReason := responseDict[_FAILURE_REASON]
 	interval, isPresentInterval := responseDict[_INTERVAL]
 	peers, isPresentPeers := responseDict[_PEERS]
 
 	if !isPresentFailureReason || !isPresentInterval || !isPresentPeers {
-		return TrackResponse{}, errors.New("server response was not in the expected format")
+		return common.TrackResponse{}, errors.New("server response was not in the expected format")
 	}
 
 	failureReasonCasted, err := common.CastTo[string](failureReason)
 	if err != nil {
-		return TrackResponse{}, err
+		return common.TrackResponse{}, err
 	}
 
 	intervalCasted, err := common.CastTo[float64](interval)
 	if err != nil {
-		return TrackResponse{}, err
+		return common.TrackResponse{}, err
 	}
 
 	peersCasted, err := common.CastTo[map[string]interface{}](peers)
 	if err != nil {
-		return TrackResponse{}, err
+		return common.TrackResponse{}, err
 	}
 
 	peersDict, err := buildPeersDict(peersCasted)
 	if err != nil {
-		return TrackResponse{}, err
+		return common.TrackResponse{}, err
 	}
 
-	response := TrackResponse{
+	response := common.TrackResponse{
 		FailureReason: failureReasonCasted,
 		Interval:      int(intervalCasted),
 		Peers:         peersDict,
