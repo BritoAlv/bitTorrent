@@ -2,11 +2,11 @@ package peer
 
 import (
 	"bittorrent/common"
+	"bittorrent/messenger"
 	"bittorrent/tracker"
 	"fmt"
 	"net"
-	"strconv"
-	"strings"
+	"slices"
 	"time"
 )
 
@@ -33,7 +33,7 @@ func performDownload(notificationChannel chan interface{}, timeToWait int) {
 	notificationChannel <- downloadNotification{}
 }
 
-func performAddPeer(notificationChannel chan interface{}, sourceId string, targetId string, address common.Address) {
+func performAddPeer(notificationChannel chan interface{}, sourceId string, targetId string, address common.Address, infohash []byte) {
 	connection, err := net.Dial("tcp", address.Ip+":"+address.Port)
 
 	// Check if connection could not be established, if so then stop
@@ -41,9 +41,13 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 		return
 	}
 
-	go performReadFromPeer(notificationChannel, connection, true, sourceId, targetId)
+	go performReadFromPeer(notificationChannel, connection, true, sourceId, targetId, infohash)
 
-	err = sendHandshake(connection, sourceId)
+	_messenger := messenger.New()
+	err = _messenger.Write(connection, messenger.HandshakeMessage{
+		Infohash: infohash,
+		Id:       sourceId,
+	})
 	// Check if handshaking could not be done, if so then stop
 	if err != nil {
 		connection.Close()
@@ -51,7 +55,7 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 	}
 }
 
-func performListen(notificationChannel chan interface{}, address common.Address, sourceId string) {
+func performListen(notificationChannel chan interface{}, address common.Address, sourceId string, infohash []byte) {
 	listener, err := net.Listen("tcp", address.Ip+":"+address.Port)
 
 	fmt.Println("PEER: Start listening")
@@ -69,157 +73,118 @@ func performListen(notificationChannel chan interface{}, address common.Address,
 			continue
 		}
 
-		go performReadFromPeer(notificationChannel, connection, false, sourceId, "")
+		go performReadFromPeer(notificationChannel, connection, false, sourceId, "", infohash)
 	}
 }
 
-func performReadFromPeer(notificationChannel chan interface{}, connection net.Conn, active bool, sourceId string, targetId string) {
+func performReadFromPeer(notificationChannel chan interface{}, connection net.Conn, active bool, sourceId string, targetId string, infohash []byte) {
+	_messenger := messenger.New()
 	wasHandshakeMade := false
 
 	// TODO: Time out connections
 	for {
-		if !wasHandshakeMade {
-			//TODO: Properly perform a handshake. Notice that peer-id must extracted/checked
-			bytes, err := common.ReliableRead(connection, _HANDSHAKE_LENGTH)
-			if err != nil {
-				fmt.Println("PEER: an error occurred while reading from neighbor: " + err.Error())
-				return
-			}
+		// TODO: Should send removePeerNotification if an error occurs
+		message, err := _messenger.Read(connection)
+		if err != nil {
+			fmt.Println("PEER: An error occurred while reading from neighbor: " + err.Error())
+			return
+		}
 
-			fmt.Println("PEER: Receive handshake message: " + string(bytes))
-			if string(bytes[:10]) == "VivaaCubaa" {
-				receivedId := string(bytes[10:_HANDSHAKE_LENGTH])
-
-				if !active {
-					targetId = receivedId
-					sendHandshake(connection, sourceId)
-				} else if active && targetId != receivedId {
-					fmt.Println("PEER: invalid id")
+		switch castedMessage := message.(type) {
+		case messenger.HandshakeMessage:
+			if !wasHandshakeMade {
+				if active && (targetId != castedMessage.Id || slices.Compare(infohash, castedMessage.Infohash) != 0) {
+					fmt.Println("PEER: Not expected id or not expected infohash")
 					return
 				}
 
-				notificationChannel <- addPeerNotification{PeerId: receivedId, Connection: connection}
+				if !active {
+					targetId = castedMessage.Id
+					err := _messenger.Write(connection, messenger.HandshakeMessage{
+						Infohash: infohash,
+						Id:       sourceId,
+					})
+					if err != nil {
+						fmt.Println("PEER: An error occurred while reading from neighbor: " + err.Error())
+						return
+					}
+				}
 				wasHandshakeMade = true
+
+				fmt.Println("PEER: Handshake performed with: " + targetId)
+				// Notify to add a new peer
+				notificationChannel <- addPeerNotification{
+					PeerId:     targetId,
+					Connection: connection,
+				}
 			} else {
-				fmt.Println("PEER: invalid handshake message")
+				fmt.Println("PEER: Handshake was already done")
 				return
 			}
-		} else {
-			bytes, err := common.ReliableRead(connection, 1)
-			// TODO: Handle error (a good approach is to send a removePeerNotification)
-			if err != nil {
-				fmt.Println("PEER: an error occurred while reading from neighbor: " + err.Error())
-				return
+		case messenger.ChokeMessage:
+			notificationChannel <- peerChokeNotification{
+				PeerId: targetId,
+				Choke:  true,
 			}
-
-			messageLength := int(bytes[0])
-
-			bytes, err = common.ReliableRead(connection, messageLength)
-			if err != nil {
-				fmt.Println("PEER: an error occurred while reading from neighbor: " + err.Error())
-				return
+		case messenger.UnchokeMessage:
+			notificationChannel <- peerChokeNotification{
+				PeerId: targetId,
+				Choke:  false,
 			}
-
-			notification := handlePeerMessage(bytes, targetId)
-			notificationChannel <- notification
+		case messenger.InterestedMessage:
+			notificationChannel <- peerInterestedNotification{
+				PeerId:     targetId,
+				Interested: true,
+			}
+		case messenger.NotInterestedMessage:
+			notificationChannel <- peerInterestedNotification{
+				PeerId:     targetId,
+				Interested: false,
+			}
+		case messenger.HaveMessage:
+			notificationChannel <- peerHaveNotification{
+				PeerId: targetId,
+				Index:  castedMessage.Index,
+			}
+		case messenger.BitfieldMessage:
+			notificationChannel <- peerBitfieldNotification{
+				PeerId:   targetId,
+				Bitfield: castedMessage.Bitfield,
+			}
+		case messenger.RequestMessage:
+			notificationChannel <- peerRequestNotification{
+				PeerId: targetId,
+				Index:  castedMessage.Index,
+				Offset: castedMessage.Offset,
+				Length: castedMessage.Length,
+			}
+		case messenger.PieceMessage:
+			notificationChannel <- peerPieceNotification{
+				PeerId: targetId,
+				Index:  castedMessage.Index,
+				Offset: castedMessage.Offset,
+				Bytes:  castedMessage.Bytes,
+			}
+		case messenger.CancelMessage:
+			notificationChannel <- peerCancelNotification{
+				PeerId: targetId,
+				Index:  castedMessage.Index,
+				Offset: castedMessage.Offset,
+				Length: castedMessage.Length,
+			}
 		}
 	}
 }
 
 func performDownloadFromPeer(notificationChannel chan interface{}, connection net.Conn, index int, offset int, length int) {
-	// Message format: message-length;message-type;index;offset;length
-	// TODO: Send the message in the official with big-endian and all that stuff
-	message := strconv.Itoa(_REQUEST_MESSAGE) + ";" + strconv.Itoa(index) + ";" + strconv.Itoa(offset) + ";" + strconv.Itoa(length) + ";"
-	bytes := []byte(message)
-	lengthPrefix := byte(len(bytes))
-	bytes = append([]byte{lengthPrefix}, bytes...)
-	err := common.ReliableWrite(connection, bytes)
-
+	_messenger := messenger.New()
+	err := _messenger.Write(connection, messenger.RequestMessage{
+		Index:  index,
+		Offset: offset,
+		Length: length,
+	})
 	if err != nil {
 		fmt.Println(err.Error())
 		return
-	}
-}
-
-func sendHandshake(connection net.Conn, sourceId string) error {
-	// TODO: Perform a bittorrent starter-handshake
-	message := []byte("VivaaCubaa" + sourceId)
-	err := common.ReliableWrite(connection, message)
-	return err
-}
-
-// Receives a message and returns a notification
-func handlePeerMessage(message []byte, peerId string) interface{} {
-	// TODO correctly parse message's payload
-	// messageType := message[0]
-	// payload := message[1:]
-	splits := strings.Split(string(message), ";")
-
-	fmt.Printf("PEER: Handling a peer message. Payload: %v \n", splits[1:])
-
-	switch splits[0] {
-	case "0":
-		fmt.Println("PEER: Receive a choke message")
-		return peerChokeNotification{
-			PeerId: peerId,
-			Choke:  true,
-		}
-	case "1":
-		fmt.Println("PEER: Receive a unchoke message")
-		return peerChokeNotification{
-			PeerId: peerId,
-			Choke:  false,
-		}
-	case "2":
-		fmt.Println("PEER: Receive a interested message")
-		return peerInterestedNotification{
-			PeerId:     peerId,
-			Interested: true,
-		}
-	case "3":
-		fmt.Println("PEER: Receive a not interested message")
-		return peerInterestedNotification{
-			PeerId:     peerId,
-			Interested: false,
-		}
-	case "4":
-		fmt.Println("PEER: Receive a have message")
-		return peerHaveNotification{
-			PeerId: peerId,
-			Index:  0,
-		}
-	case "5":
-		fmt.Println("PEER: Receive a bitfield message")
-		return peerBitfieldNotification{
-			PeerId:   peerId,
-			Bitfield: []bool{},
-		}
-	case "6":
-		fmt.Println("PEER: Receive a request message")
-		return peerRequestNotification{
-			PeerId: peerId,
-			Index:  0,
-			Offset: 0,
-			Length: 0,
-		}
-	case "7":
-		fmt.Println("PEER: Receive a piece message")
-		return peerPieceNotification{
-			PeerId: peerId,
-			Index:  0,
-			Offset: 0,
-			Bytes:  []byte{},
-		}
-	case "8":
-		fmt.Println("PEER: Receive a cancel message")
-		return peerCancelNotification{
-			PeerId: peerId,
-			Index:  0,
-			Offset: 0,
-			Length: 0,
-		}
-	default:
-		fmt.Println("PEER: Error! Invalid message type")
-		return killNotification{}
 	}
 }

@@ -88,7 +88,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		// Event:    "started",
 	}
 
-	go performListen(peer.notificationChannel, peer.address, peer.Id)
+	go performListen(peer.notificationChannel, peer.address, peer.Id, peer.torrentData.InfoHash)
 	go performTrack(peer.notificationChannel, peer.tracker, trackerRequest, 0)
 	if !peer.downloaded {
 		go performDownload(peer.notificationChannel, 10)
@@ -109,6 +109,8 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 				return
 			case addPeerNotification:
 				peer.handleAddPeerNotification(notification)
+			case peerRequestNotification:
+				peer.handlePeerRequestNotification(notification)
 			default:
 				fmt.Println("Invalid notification-type")
 			}
@@ -128,7 +130,7 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 	if !peer.downloaded && len(peer.peers) < PEERS_LOWER_BOUND {
 		for id, address := range notification.Response.Peers {
 			if _, contains := peer.peers[id]; !contains {
-				go performAddPeer(peer.notificationChannel, peer.Id, id, address)
+				go performAddPeer(peer.notificationChannel, peer.Id, id, address, peer.torrentData.InfoHash)
 			}
 		}
 	}
@@ -185,6 +187,10 @@ func (peer *Peer) handleAddPeerNotification(notification addPeerNotification) {
 		IsChoker:   false,
 		IsChoked:   false,
 	}
+}
+
+func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotification) {
+	fmt.Println("PEER: A piece has been requested by " + notification.PeerId)
 }
 
 func (peer *Peer) checkAllPieces() error {
