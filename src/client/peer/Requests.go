@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-const _REQUEST_MESSAGE = 6
-
-const _HANDSHAKE_LENGTH = 30
-
 func performTrack(notificationChannel chan interface{}, tracker tracker.Tracker, request common.TrackRequest, timeToWait int) {
 	time.Sleep(time.Second * time.Duration(timeToWait)) // Wait for the specified time
 	response, err := tracker.Track(request)
@@ -57,14 +53,13 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 func performListen(notificationChannel chan interface{}, address common.Address, sourceId string, infohash [20]byte) {
 	listener, err := net.Listen("tcp", address.Ip+":"+address.Port)
 
-	fmt.Println("PEER: Start listening")
-	// TODO: Properly handle error here
 	if err != nil {
-		fmt.Println("Peer could not start listening: " + err.Error())
+		fmt.Println("ERROR: could not start listening: " + err.Error())
 		notificationChannel <- killNotification{}
 		return
 	}
 
+	fmt.Println("LOG: start listening")
 	for {
 		connection, err := listener.Accept()
 
@@ -82,10 +77,10 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 
 	// TODO: Time out connections
 	for {
-		// TODO: Should send removePeerNotification if an error occurs
 		message, err := _messenger.Read(connection)
 		if err != nil {
-			fmt.Println("PEER: An error occurred while reading from neighbor: " + err.Error())
+			fmt.Println("ERROR: an error occurred while reading from neighbor: " + err.Error())
+			notificationChannel <- removePeerNotification{PeerId: targetId}
 			return
 		}
 
@@ -93,7 +88,8 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 		case messenger.HandshakeMessage:
 			if !wasHandshakeMade {
 				if active && (targetId != castedMessage.Id || infohash != castedMessage.Infohash) {
-					fmt.Println("PEER: Not expected id or not expected infohash")
+					fmt.Println("ERROR: not expected id or infohash")
+					notificationChannel <- removePeerNotification{PeerId: targetId}
 					return
 				}
 
@@ -104,20 +100,27 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 						Id:       sourceId,
 					})
 					if err != nil {
-						fmt.Println("PEER: An error occurred while reading from neighbor: " + err.Error())
+						fmt.Println("ERROR: an error occurred while reading from neighbor: " + err.Error())
+						notificationChannel <- removePeerNotification{PeerId: targetId}
 						return
 					}
 				}
 				wasHandshakeMade = true
 
-				fmt.Println("PEER: Handshake performed with: " + targetId)
+				fmt.Println("LOG: handshake performed with: " + targetId)
 				// Notify to add a new peer
 				notificationChannel <- addPeerNotification{
 					PeerId:     targetId,
 					Connection: connection,
 				}
+
+				// Send bitfields after handshake correctly performed
+				notificationChannel <- sendBitfieldNotification{
+					PeerId: targetId,
+				}
 			} else {
-				fmt.Println("PEER: Handshake was already done")
+				fmt.Println("ERROR: handshake was already done")
+				notificationChannel <- removePeerNotification{PeerId: targetId}
 				return
 			}
 		case messenger.ChokeMessage:
@@ -171,19 +174,42 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 				Offset: castedMessage.Offset,
 				Length: castedMessage.Length,
 			}
+		default:
+			fmt.Println("ERROR: invalid message type")
+			notificationChannel <- removePeerNotification{PeerId: targetId}
+			return
 		}
 	}
 }
 
-func performDownloadFromPeer(notificationChannel chan interface{}, connection net.Conn, index int, offset int, length int) {
+func performSendRequestToPeer(notificationChannel chan interface{}, connection net.Conn, peerId string, index int, offset int, length int) {
 	_messenger := messenger.New()
+
 	err := _messenger.Write(connection, messenger.RequestMessage{
 		Index:  index,
 		Offset: offset,
 		Length: length,
 	})
+
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("ERROR: an error occurred while sending a request to neighbor: " + err.Error())
+		notificationChannel <- removePeerNotification{PeerId: peerId}
 		return
 	}
+
+	fmt.Println("LOG: send a request-message to neighbor: " + peerId)
+}
+
+func performSendBitfieldToPeer(notificationChannel chan interface{}, connection net.Conn, peerId string, bitfield []bool) {
+	_messenger := messenger.New()
+
+	err := _messenger.Write(connection, messenger.BitfieldMessage{Bitfield: bitfield})
+
+	if err != nil {
+		fmt.Println(err.Error())
+		notificationChannel <- removePeerNotification{PeerId: peerId}
+		return
+	}
+
+	fmt.Printf("LOG: send a bitfield-message to neighbor: %v -> %v\n", peerId, bitfield)
 }

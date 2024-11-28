@@ -23,6 +23,10 @@ type removePeerNotification struct {
 	PeerId string
 }
 
+type sendBitfieldNotification struct {
+	PeerId string
+}
+
 type peerRequestNotification struct {
 	PeerId string
 	Index  int

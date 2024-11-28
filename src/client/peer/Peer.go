@@ -109,10 +109,16 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 				return
 			case addPeerNotification:
 				peer.handleAddPeerNotification(notification)
+			case removePeerNotification:
+				peer.handleRemovePeerNotification(notification)
+			case sendBitfieldNotification:
+				peer.handleSendBitfieldNotification(notification)
 			case peerRequestNotification:
 				peer.handlePeerRequestNotification(notification)
+			case peerBitfieldNotification:
+				peer.handlePeerBitfieldNotification(notification)
 			default:
-				fmt.Println("Invalid notification-type")
+				fmt.Println("ERROR: invalid notification-type")
 			}
 		}
 	}()
@@ -123,7 +129,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 
 func (peer *Peer) handleTrackResponseNotification(notification trackNotification) {
 	// TODO: Properly handle the case when the notification was not successful
-	fmt.Println("PEER: Handling tracker response notification")
+	fmt.Println("LOG: handling tracker response notification")
 	const PEERS_LOWER_BOUND int = 20
 
 	// Check if the file is not downloaded and neighbor-peers are less than the established bound
@@ -154,19 +160,21 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 }
 
 func (peer *Peer) handleDownloadNotification() {
-	fmt.Println("PEER: Handling download notification")
+	fmt.Println("LOG: handling download notification")
 
 	// TODO: Properly handle error here
 	index, offset, length, _ := peer.pieceManager.GetUncheckedChunk(0)
 
+	var peerId string
 	var connection net.Conn
-	for _, info := range peer.peers {
+	for id, info := range peer.peers {
+		peerId = id
 		connection = info.Connection
 		break
 	}
 
 	if connection != nil {
-		go performDownloadFromPeer(peer.notificationChannel, connection, index, offset, length)
+		go performSendRequestToPeer(peer.notificationChannel, connection, peerId, index, offset, length)
 	}
 
 	if !peer.downloaded {
@@ -189,8 +197,44 @@ func (peer *Peer) handleAddPeerNotification(notification addPeerNotification) {
 	}
 }
 
+func (peer *Peer) handleRemovePeerNotification(notification removePeerNotification) {
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	err := info.Connection.Close()
+	if err != nil {
+		fmt.Println("ERROR: an error occurred while closing connection " + err.Error())
+	}
+
+	delete(peer.peers, notification.PeerId)
+}
+
+func (peer *Peer) handleSendBitfieldNotification(notification sendBitfieldNotification) {
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	performSendBitfieldToPeer(peer.notificationChannel, info.Connection, notification.PeerId, peer.pieceManager.Bitfield())
+}
+
 func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotification) {
-	fmt.Println("PEER: A piece has been requested by " + notification.PeerId)
+	fmt.Println("LOG: a request-message was received from: " + notification.PeerId)
+}
+
+func (peer *Peer) handlePeerBitfieldNotification(notification peerBitfieldNotification) {
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	info.Bitfield = notification.Bitfield
+	fmt.Printf("LOG: a bitfield-message was received from: %v -> %v \n", notification.PeerId, notification.Bitfield)
 }
 
 func (peer *Peer) checkAllPieces() error {
