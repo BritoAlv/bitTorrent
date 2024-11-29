@@ -35,7 +35,7 @@ func New(id string, address common.Address, torrent common.Torrent) (Peer, error
 	peer.notificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
 
-	peer.tracker = tracker.CentralizedTracker{Url: torrent.Announce}
+	peer.tracker = tracker.CentralizedHttpTracker{Url: torrent.Announce}
 
 	length := 0
 	var files []common.FileInfo

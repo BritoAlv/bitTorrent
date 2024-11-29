@@ -10,7 +10,7 @@ import (
 )
 
 type Torrent struct {
-	Announce    string   // Url of the tracker
+	Announce    string   // Location of the tracker
 	InfoHash    [20]byte // Info-hash of the .torrent file
 	Name        string   // Suggested name to save the file (or directory) as. It is purely advisory.
 	PieceLength int64    // The number of bytes in each piece the file is split into
@@ -152,7 +152,7 @@ func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error 
 		return err
 	}
 
-	torrentPath := "./torrents/" + name + ".torrent"
+	torrentPath := "./" + name + ".torrent"
 	torrentFile, err := os.OpenFile(torrentPath, os.O_CREATE|os.O_RDWR, ALL_RW_PERMISSION)
 	if err != nil {
 		return err

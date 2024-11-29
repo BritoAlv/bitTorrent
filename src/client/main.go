@@ -1,44 +1,33 @@
 package main
 
 import (
-	"bittorrent/client/peer"
 	"bittorrent/common"
 	"fmt"
-	"sync"
+	"net/http"
 )
 
 func main() {
-	torrent, err := common.ParseTorrentFile("regex.pdf.torrent")
+	trackerUrl := "http://127.0.0.1:1234/announce"
+	err := common.CreateTorrentFile("main.go", trackerUrl, false)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-
-	// mockClient1 := peer.PeerMock{
-	// 	Address: common.Address{Ip: "localhost", Port: "8085"},
-	// }
-	// mockClient2 := peer.PeerMock{
-	// 	Address: common.Address{Ip: "localhost", Port: "8090"},
-	// }
-
-	// go mockClient1.Torrent(nil)
-	// go mockClient2.Torrent(nil)
-
-	id := "peer-id"
-	address := common.Address{Ip: "localhost", Port: "9000"}
-
-	client, err := peer.New(id, address, torrent)
+	torrent, err := common.ParseTorrentFile("./torrents/main.go.torrent")
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(1)
-	go client.Torrent(&waitGroup)
-
-	// time.Sleep(time.Second * time.Duration(10))
-	// go mockClient2.ActiveTorrent(nil, address)
-
-	waitGroup.Wait()
+	var request common.TrackRequest
+	request.PeerId = "Alvaro"
+	request.InfoHash = torrent.InfoHash
+	request.Ip = "127.0.0.5"
+	request.Port = "332"
+	request.Left = int(torrent.Length)
+	encoded, err := common.BuildHttpUrl(trackerUrl, request)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	http.Get(encoded)
 }

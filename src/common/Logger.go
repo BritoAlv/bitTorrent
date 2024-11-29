@@ -15,7 +15,7 @@ func NewLogger(fileID string) *Logger {
 }
 
 func (l *Logger) WriteToFileError(content string) {
-	content = MsgError + content
+	content = "Error (:" + content
 	l.WriteToFileOK(content)
 }
 
