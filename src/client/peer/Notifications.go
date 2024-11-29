@@ -5,6 +5,8 @@ import (
 	"net"
 )
 
+type killNotification struct{}
+
 type trackNotification struct {
 	Response   common.TrackResponse
 	Successful bool
@@ -12,7 +14,15 @@ type trackNotification struct {
 
 type downloadNotification struct{}
 
-type killNotification struct{}
+type writeNotification struct {
+	Index  int
+	Offset int
+}
+
+type pieceVerificationNotification struct {
+	Index    int
+	Verified bool
+}
 
 type addPeerNotification struct {
 	PeerId     string
@@ -20,6 +30,10 @@ type addPeerNotification struct {
 }
 
 type removePeerNotification struct {
+	PeerId string
+}
+
+type sendBitfieldNotification struct {
 	PeerId string
 }
 

@@ -37,6 +37,7 @@ func New(length int, pieceLength int, chunkLength int) PieceManager {
 
 			if chunkLength > lastPieceBytes {
 				lastPieceChunks = 1
+				manager.lastPieceChunkLength = lastPieceBytes
 			} else {
 				lastPieceChunks = lastPieceBytes / chunkLength
 				manager.lastPieceChunkLength = lastPieceBytes % chunkLength
@@ -60,6 +61,29 @@ func New(length int, pieceLength int, chunkLength int) PieceManager {
 
 func (manager *fixedPieceManager) ChunkLength() int {
 	return manager.chunkLength
+}
+
+func (manager *fixedPieceManager) Bitfield() []bool {
+	bitfield := make([]bool, len(manager.uncheckedChunks))
+
+	for index, uncheckedChunks := range manager.uncheckedChunks {
+		if uncheckedChunks == 0 {
+			bitfield[index] = true
+		} else {
+			bitfield[index] = false
+		}
+	}
+
+	return bitfield
+}
+
+func (manager *fixedPieceManager) VerifyPiece(index int) bool {
+	return manager.uncheckedChunks[index] == 0
+}
+
+func (manager *fixedPieceManager) VerifyChunk(index int, offset int) bool {
+	chunkIndex := offset / manager.chunkLength
+	return manager.chunks[index][chunkIndex]
 }
 
 func (manager *fixedPieceManager) CheckChunk(index int, offset int) bool {
@@ -102,7 +126,7 @@ func (manager *fixedPieceManager) GetUncheckedChunk(index int) (int, int, int, e
 				length = manager.lastChunkLength
 			}
 
-			if isLastPiece && isLastChunk {
+			if isLastPiece && isLastChunk && manager.lastPieceChunkLength > 0 {
 				length = manager.lastPieceChunkLength
 			}
 

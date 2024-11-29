@@ -5,7 +5,6 @@ import (
 	"bittorrent/client/pieceManager"
 	"bittorrent/client/tracker"
 	"bittorrent/common"
-	"crypto/sha1"
 	"fmt"
 	"net"
 	"sync"
@@ -24,7 +23,7 @@ type Peer struct {
 	fileManager         fileManager.FileManager
 	pieceManager        pieceManager.PieceManager
 	downloaded          bool
-	getAbsoluteOffset   func(int, int) int
+	getAbsoluteOffset   func(int, int) int // function that calculates the absolute offset from index and relative-offset
 }
 
 func New(id string, address common.Address, torrent common.Torrent) (Peer, error) {
@@ -101,18 +100,30 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 
 		for message := range peer.notificationChannel {
 			switch notification := message.(type) {
+			case killNotification:
+				return
 			case trackNotification:
 				peer.handleTrackResponseNotification(notification)
 			case downloadNotification:
 				peer.handleDownloadNotification()
-			case killNotification:
-				return
+			case writeNotification:
+				peer.handleWriteNotification(notification)
+			case pieceVerificationNotification:
+				peer.handlePieceVerifiedNotification(notification)
 			case addPeerNotification:
 				peer.handleAddPeerNotification(notification)
+			case removePeerNotification:
+				peer.handleRemovePeerNotification(notification)
+			case sendBitfieldNotification:
+				peer.handleSendBitfieldNotification(notification)
 			case peerRequestNotification:
 				peer.handlePeerRequestNotification(notification)
+			case peerBitfieldNotification:
+				peer.handlePeerBitfieldNotification(notification)
+			case peerPieceNotification:
+				peer.handlePeerPieceNotification(notification)
 			default:
-				fmt.Println("Invalid notification-type")
+				fmt.Println("ERROR: invalid notification-type")
 			}
 		}
 	}()
@@ -123,7 +134,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 
 func (peer *Peer) handleTrackResponseNotification(notification trackNotification) {
 	// TODO: Properly handle the case when the notification was not successful
-	fmt.Println("PEER: Handling tracker response notification")
+	fmt.Println("LOG: handling tracker response notification")
 	const PEERS_LOWER_BOUND int = 20
 
 	// Check if the file is not downloaded and neighbor-peers are less than the established bound
@@ -154,23 +165,39 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 }
 
 func (peer *Peer) handleDownloadNotification() {
-	fmt.Println("PEER: Handling download notification")
+	fmt.Println("LOG: handling download notification")
 
 	// TODO: Properly handle error here
-	index, offset, length, _ := peer.pieceManager.GetUncheckedChunk(0)
+	totalPieces := len(peer.torrentData.Pieces) / 20
+	var index, offset, length int
+	var err error
+	for i := range totalPieces {
+		index, offset, length, err = peer.pieceManager.GetUncheckedChunk(i)
 
+		if err != nil && i == totalPieces-1 {
+			peer.downloaded = true
+			return
+		} else if err != nil {
+			continue
+		} else {
+			break
+		}
+	}
+
+	var peerId string
 	var connection net.Conn
-	for _, info := range peer.peers {
+	for id, info := range peer.peers {
+		peerId = id
 		connection = info.Connection
 		break
 	}
 
 	if connection != nil {
-		go performDownloadFromPeer(peer.notificationChannel, connection, index, offset, length)
+		go performSendRequestToPeer(peer.notificationChannel, connection, peerId, index, offset, length)
 	}
 
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 10)
+		go performDownload(peer.notificationChannel, 1)
 	}
 }
 
@@ -189,46 +216,116 @@ func (peer *Peer) handleAddPeerNotification(notification addPeerNotification) {
 	}
 }
 
+func (peer *Peer) handleRemovePeerNotification(notification removePeerNotification) {
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	err := info.Connection.Close()
+	if err != nil {
+		fmt.Println("ERROR: an error occurred while closing connection " + err.Error())
+	}
+
+	delete(peer.peers, notification.PeerId)
+	fmt.Println("LOG: remove neighbor: " + notification.PeerId)
+}
+
+func (peer *Peer) handleSendBitfieldNotification(notification sendBitfieldNotification) {
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	performSendBitfieldToPeer(peer.notificationChannel, info.Connection, notification.PeerId, peer.pieceManager.Bitfield())
+}
+
 func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotification) {
-	fmt.Println("PEER: A piece has been requested by " + notification.PeerId)
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	fmt.Println("LOG: a request-message was received from: " + notification.PeerId)
+	if !peer.pieceManager.VerifyPiece(notification.Index) {
+		peer.handleRemovePeerNotification(removePeerNotification{notification.PeerId})
+		return
+	}
+
+	start := peer.getAbsoluteOffset(notification.Index, notification.Offset)
+	go performSendPieceToPeer(peer.notificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start)
+}
+
+func (peer *Peer) handlePeerBitfieldNotification(notification peerBitfieldNotification) {
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	info.Bitfield = notification.Bitfield
+	fmt.Printf("LOG: a bitfield-message was received from: %v\n", notification.PeerId)
+}
+
+func (peer *Peer) handlePeerPieceNotification(notification peerPieceNotification) {
+	_, contains := peer.peers[notification.PeerId]
+	if !contains {
+		return
+	}
+
+	if peer.pieceManager.VerifyPiece(notification.Index) || peer.pieceManager.VerifyChunk(notification.Index, notification.Offset) {
+		return
+	}
+
+	absoluteOffset := peer.getAbsoluteOffset(notification.Index, notification.Offset)
+	go performWrite(peer.notificationChannel, peer.fileManager, notification.Index, notification.Offset, absoluteOffset, notification.Bytes)
+
+	fmt.Println("LOG: a piece-message was received from: " + notification.PeerId)
+}
+
+func (peer *Peer) handleWriteNotification(notification writeNotification) {
+	if peer.pieceManager.VerifyPiece(notification.Index) || peer.pieceManager.VerifyChunk(notification.Index, notification.Offset) {
+		return
+	}
+
+	checkedPiece := peer.pieceManager.CheckChunk(notification.Index, notification.Offset)
+
+	if checkedPiece {
+		pieceAbsoluteOffset := notification.Index * int(peer.torrentData.PieceLength)
+
+		go performVerifyPiece(peer.notificationChannel, peer.fileManager, notification.Index, pieceAbsoluteOffset, int(peer.torrentData.PieceLength), peer.torrentData.Pieces)
+	}
+}
+
+func (peer *Peer) handlePieceVerifiedNotification(notification pieceVerificationNotification) {
+	if notification.Verified {
+		// TODO: Send a have-message to all peers
+		fmt.Printf("LOG: piece %v was verified\n", notification.Index)
+	} else {
+		fmt.Printf("LOG: piece %v was corrupted\n", notification.Index)
+		peer.pieceManager.UncheckPiece(notification.Index)
+	}
 }
 
 func (peer *Peer) checkAllPieces() error {
 	for index := range len(peer.torrentData.Pieces) / 20 {
-		err := peer.checkPieceHash(index)
+		pieceAbsoluteOffset := peer.getAbsoluteOffset(index, 0)
+		hash, err := getPieceHash(peer.fileManager, index, pieceAbsoluteOffset, int(peer.torrentData.PieceLength))
 		if err != nil {
 			return err
+		}
+
+		isHashValid := checkPieceHash(index, hash, peer.torrentData.Pieces)
+		if !isHashValid {
+			peer.pieceManager.UncheckPiece(index)
 		}
 	}
 
 	if len(peer.pieceManager.GetUncheckedPieces()) == 0 {
 		peer.downloaded = true
-	}
-
-	return nil
-}
-
-func (peer *Peer) checkPieceHash(index int) error {
-	start := peer.getAbsoluteOffset(index, 0)
-	bytes, err := peer.fileManager.Read(start, int(peer.torrentData.PieceLength))
-
-	if err != nil {
-		// Check if the reading attempt was outside of the file bounds, if so the expected bytes are yet downloaded
-		_, isOutsideOfFileBounds := err.(fileManager.OutsideOfFileBoundsError)
-
-		if isOutsideOfFileBounds {
-			bytes = []byte{}
-		} else {
-			return err
-		}
-	}
-
-	hashIndex := index * 20
-	bytesHash := sha1.Sum(bytes)
-	pieceHash := peer.torrentData.Pieces[hashIndex : hashIndex+20]
-
-	if bytesHash != [20]byte(pieceHash) {
-		peer.pieceManager.UncheckPiece(index)
 	}
 
 	return nil
