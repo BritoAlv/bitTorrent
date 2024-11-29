@@ -2,7 +2,6 @@ package pieceManager
 
 import (
 	"bittorrent/common"
-	"errors"
 )
 
 type fixedPieceManager struct {
@@ -113,7 +112,10 @@ func (manager *fixedPieceManager) GetUncheckedPieces() []int {
 	return uncheckedPieces
 }
 
-func (manager *fixedPieceManager) GetUncheckedChunk(index int) (int, int, int, error) {
+func (manager *fixedPieceManager) GetUncheckedChunks(index int, n int) [][3]int {
+	uncheckedChunks := [][3]int{}
+
+	count := 0
 	for chunkIndex, isCheckedChunk := range manager.chunks[index] {
 		if !isCheckedChunk {
 			isLastPiece := index == len(manager.chunks)-1
@@ -130,9 +132,14 @@ func (manager *fixedPieceManager) GetUncheckedChunk(index int) (int, int, int, e
 				length = manager.lastPieceChunkLength
 			}
 
-			return index, offset, length, nil
+			uncheckedChunks = append(uncheckedChunks, [3]int{index, offset, length})
+			count++
+		}
+
+		if count > n {
+			break
 		}
 	}
 
-	return -1, -1, -1, errors.New("all chunks are already checked")
+	return uncheckedChunks
 }
