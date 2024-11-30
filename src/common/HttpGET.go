@@ -54,7 +54,7 @@ func BuildHttpUrl(trackerUrl string, request TrackRequest) (string, error) {
 // DecodeTrackerResponse /*
 func DecodeTrackerResponse(bytes []byte) (TrackResponse, error) {
 	var response TrackResponse
-	err := bencode.DecodeBytes(bytes, response)
+	err := bencode.DecodeBytes(bytes, &response)
 	if err != nil {
 		return TrackResponse{}, err
 	}

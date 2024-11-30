@@ -1,7 +1,7 @@
 package common
 
 type TrackResponse struct {
-	FailureReason string
-	Interval      int
-	Peers         map[string]Address // Peers is an <Id, Address> dictionary
+	FailureReason string `bencode:"failure reason"`	
+	Interval      int `bencode:"interal"`
+	Peers         map[string]Address `bencode:"peers"`
 }
