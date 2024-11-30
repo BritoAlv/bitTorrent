@@ -173,7 +173,7 @@ func (peer *Peer) handleDownloadNotification() {
 	}
 
 	uncheckedChunks := [][3]int{}
-	for index := range missing_pieces {
+	for _, index := range missing_pieces {
 		uncheckedChunks = append(uncheckedChunks, peer.pieceManager.GetUncheckedChunks(index, UNCHECKED_CHUNKS_PER_PIECE)...)
 	}
 
