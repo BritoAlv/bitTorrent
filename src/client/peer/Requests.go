@@ -221,7 +221,7 @@ func performSendPieceToPeer(notificationChannel chan interface{}, connection net
 
 	bytes, err := _fileManager.Read(absoluteOffset, length)
 	if err != nil {
-		fmt.Println("ERROR: an error occurred while reading from file" + err.Error())
+		fmt.Println("ERROR: an error occurred while reading from file: " + err.Error())
 		return
 	}
 
@@ -241,7 +241,7 @@ func performSendPieceToPeer(notificationChannel chan interface{}, connection net
 func performWrite(notificationChannel chan interface{}, _fileManager fileManager.FileManager, index int, offset int, absoluteOffset int, bytes []byte) {
 	err := _fileManager.Write(absoluteOffset, &bytes)
 	if err != nil {
-		fmt.Println("ERROR: an error occurred while writing the file")
+		fmt.Println("ERROR: an error occurred while writing the file: " + err.Error())
 		return
 	}
 
