@@ -238,6 +238,20 @@ func performSendPieceToPeer(notificationChannel chan interface{}, connection net
 	}
 }
 
+func performSendHaveToPeer(notificationChannel chan interface{}, connection net.Conn, peerId string, index int) {
+	_messenger := messenger.New()
+
+	err := _messenger.Write(connection, messenger.HaveMessage{Index: index})
+
+	if err != nil {
+		fmt.Println("ERROR: an error occurred while sending a have-message to neighbor: " + err.Error())
+		notificationChannel <- removePeerNotification{PeerId: peerId}
+		return
+	}
+
+	fmt.Printf("LOG: send a have-message to neighbor: %v\n", peerId)
+}
+
 func performWrite(notificationChannel chan interface{}, _fileManager fileManager.FileManager, index int, offset int, absoluteOffset int, bytes []byte) {
 	err := _fileManager.Write(absoluteOffset, &bytes)
 	if err != nil {

@@ -33,7 +33,7 @@ func New(id string, address common.Address, torrent common.Torrent, downloadDire
 	peer.notificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
 
-	peer.tracker = tracker.CentralizedHttpTracker{Url: torrent.Announce}
+	peer.tracker = tracker.CentralizedTracker{Url: torrent.Announce}
 
 	length := 0
 	var files []common.FileInfo
@@ -121,6 +121,8 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 				peer.handlePeerBitfieldNotification(notification)
 			case peerPieceNotification:
 				peer.handlePeerPieceNotification(notification)
+			case peerHaveNotification:
+				peer.handlePeerHaveNotification(notification)
 			default:
 				fmt.Println("ERROR: invalid notification-type")
 			}
@@ -279,9 +281,9 @@ func (peer *Peer) handlePeerPieceNotification(notification peerPieceNotification
 }
 
 func (peer *Peer) handleWriteNotification(notification writeNotification) {
-	if peer.pieceManager.VerifyPiece(notification.Index) || peer.pieceManager.VerifyChunk(notification.Index, notification.Offset) {
-		return
-	}
+	// if peer.pieceManager.VerifyPiece(notification.Index) || peer.pieceManager.VerifyChunk(notification.Index, notification.Offset) {
+	// 	return
+	// }
 
 	checkedPiece := peer.pieceManager.CheckChunk(notification.Index, notification.Offset)
 
@@ -294,12 +296,29 @@ func (peer *Peer) handleWriteNotification(notification writeNotification) {
 
 func (peer *Peer) handlePieceVerifiedNotification(notification pieceVerificationNotification) {
 	if notification.Verified {
-		// TODO: Send a have-message to all peers
 		fmt.Printf("LOG: piece %v was verified\n", notification.Index)
+
+		// Send have-message to all neighbor peers
+		for peerId, peerInfo := range peer.peers {
+			go performSendHaveToPeer(peer.notificationChannel, peerInfo.Connection, peerId, notification.Index)
+		}
 	} else {
 		fmt.Printf("LOG: piece %v was corrupted\n", notification.Index)
 		peer.pieceManager.UncheckPiece(notification.Index)
 	}
+}
+
+func (peer *Peer) handlePeerHaveNotification(notification peerHaveNotification) {
+	info, contains := peer.peers[notification.PeerId]
+
+	if !contains {
+		return
+	}
+
+	// Update peer's info's bitfield
+	info.Bitfield[notification.Index] = true
+	peer.peers[notification.PeerId] = info
+	fmt.Printf("LOG: a have-message with index %v was received from: %v", notification.Index, notification.PeerId)
 }
 
 // Calculate the amount of bytes left to download
