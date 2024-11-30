@@ -25,7 +25,7 @@ type Peer struct {
 	getAbsoluteOffset   func(int, int) int // function that calculates the absolute offset from index and relative-offset
 }
 
-func New(id string, address common.Address, torrent common.Torrent) (Peer, error) {
+func New(id string, address common.Address, torrent common.Torrent, downloadDirectory string) (Peer, error) {
 	peer := Peer{}
 	peer.Id = id
 	peer.address = address
@@ -40,7 +40,7 @@ func New(id string, address common.Address, torrent common.Torrent) (Peer, error
 	if torrent.Files == nil {
 		files = []common.FileInfo{{
 			Length: int(torrent.Length),
-			Path:   "./" + torrent.Name,
+			Path:   "/" + torrent.Name,
 		}}
 		length = int(torrent.Length)
 	} else {
@@ -51,7 +51,7 @@ func New(id string, address common.Address, torrent common.Torrent) (Peer, error
 	}
 
 	var err error
-	peer.fileManager, err = fileManager.New(files)
+	peer.fileManager, err = fileManager.New(downloadDirectory, files)
 	if err != nil {
 		return Peer{}, err
 	}
