@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/zeebo/bencode"
 )
@@ -94,8 +96,8 @@ func ParseTorrentFile(fileName string) (Torrent, error) {
 	return torrent, nil
 }
 
-func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error {
-	file, err := os.OpenFile(path, os.O_RDWR, ALL_RW_PERMISSION)
+func CreateTorrentFile(fileName string, torrentName string, announceUrl string, isDirectory bool) error {
+	file, err := os.OpenFile(fileName, os.O_RDWR, ALL_RW_PERMISSION)
 	if err != nil {
 		return err
 	}
@@ -105,7 +107,7 @@ func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error 
 		return err
 	}
 
-	name := file.Name()
+	name := path.Base(file.Name())
 	pieceLength := int(math.Pow(2, 18))
 	length := fileInfo.Size()
 	totalPieces := GetTotalPieces(int(length), pieceLength)
@@ -152,8 +154,15 @@ func CreateTorrentFile(path string, announceUrl string, isDirectory bool) error 
 		return err
 	}
 
-	torrentPath := "./" + name + ".torrent"
-	torrentFile, err := os.OpenFile(torrentPath, os.O_CREATE|os.O_RDWR, ALL_RW_PERMISSION)
+	torrentName = torrentName + ".torrent"
+
+	// Remove file if there's already one named like that
+	err = os.Remove(torrentName)
+	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+		return err
+	}
+
+	torrentFile, err := os.OpenFile(torrentName, os.O_CREATE|os.O_RDWR, ALL_RW_PERMISSION)
 	if err != nil {
 		return err
 	}
