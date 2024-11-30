@@ -82,7 +82,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		PeerId:   peer.Id,
 		Ip:       peer.address.Ip,
 		Port:     peer.address.Port,
-		Left:     500,
+		Left:     peer.bytesLeft(),
 		// Event:    "started",
 	}
 
@@ -145,13 +145,7 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 		}
 	}
 
-	// Calculate the amount of bytes left to download
-	left := 0
-	if !peer.downloaded {
-		for range peer.pieceManager.GetUncheckedPieces() {
-			left += int(peer.torrentData.PieceLength)
-		}
-	}
+	left := peer.bytesLeft()
 
 	go performTrack(peer.notificationChannel, peer.tracker, common.TrackRequest{
 		InfoHash: peer.torrentData.InfoHash,
@@ -306,6 +300,18 @@ func (peer *Peer) handlePieceVerifiedNotification(notification pieceVerification
 		fmt.Printf("LOG: piece %v was corrupted\n", notification.Index)
 		peer.pieceManager.UncheckPiece(notification.Index)
 	}
+}
+
+// Calculate the amount of bytes left to download
+func (peer *Peer) bytesLeft() int {
+	// Calculate the amount of bytes left to download
+	left := 0
+	if !peer.downloaded {
+		for range peer.pieceManager.GetUncheckedPieces() {
+			left += int(peer.torrentData.PieceLength)
+		}
+	}
+	return left
 }
 
 func (peer *Peer) checkAllPieces() error {
