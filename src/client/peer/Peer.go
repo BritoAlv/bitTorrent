@@ -6,7 +6,6 @@ import (
 	"bittorrent/client/tracker"
 	"bittorrent/common"
 	"fmt"
-	"net"
 	"sync"
 )
 
@@ -26,7 +25,7 @@ type Peer struct {
 	getAbsoluteOffset   func(int, int) int // function that calculates the absolute offset from index and relative-offset
 }
 
-func New(id string, address common.Address, torrent common.Torrent) (Peer, error) {
+func New(id string, address common.Address, torrent common.Torrent, downloadDirectory string) (Peer, error) {
 	peer := Peer{}
 	peer.Id = id
 	peer.address = address
@@ -41,7 +40,7 @@ func New(id string, address common.Address, torrent common.Torrent) (Peer, error
 	if torrent.Files == nil {
 		files = []common.FileInfo{{
 			Length: int(torrent.Length),
-			Path:   "./" + torrent.Name,
+			Path:   "/" + torrent.Name,
 		}}
 		length = int(torrent.Length)
 	} else {
@@ -52,7 +51,7 @@ func New(id string, address common.Address, torrent common.Torrent) (Peer, error
 	}
 
 	var err error
-	peer.fileManager, err = fileManager.New(files)
+	peer.fileManager, err = fileManager.New(downloadDirectory, files)
 	if err != nil {
 		return Peer{}, err
 	}
@@ -83,14 +82,14 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		PeerId:   peer.Id,
 		Ip:       peer.address.Ip,
 		Port:     peer.address.Port,
-		Left:     500,
+		Left:     peer.bytesLeft(),
 		// Event:    "started",
 	}
 
 	go performListen(peer.notificationChannel, peer.address, peer.Id, peer.torrentData.InfoHash)
 	go performTrack(peer.notificationChannel, peer.tracker, trackerRequest, 0)
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 10)
+		go performDownload(peer.notificationChannel, 2)
 	}
 
 	waitGroup := sync.WaitGroup{}
@@ -146,13 +145,7 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 		}
 	}
 
-	// Calculate the amount of bytes left to download
-	left := 0
-	if !peer.downloaded {
-		for range peer.pieceManager.GetUncheckedPieces() {
-			left += int(peer.torrentData.PieceLength)
-		}
-	}
+	left := peer.bytesLeft()
 
 	go performTrack(peer.notificationChannel, peer.tracker, common.TrackRequest{
 		InfoHash: peer.torrentData.InfoHash,
@@ -165,35 +158,32 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 }
 
 func (peer *Peer) handleDownloadNotification() {
+	// Constants
+	const UNCHECKED_CHUNKS_PER_PIECE = 3
+	const INDEX = 0
+	const OFFSET = 1
+	const LENGTH = 2
+
 	fmt.Println("LOG: handling download notification")
+	missing_pieces := peer.pieceManager.GetUncheckedPieces()
 
-	// TODO: Properly handle error here
-	totalPieces := len(peer.torrentData.Pieces) / 20
-	var index, offset, length int
-	var err error
-	for i := range totalPieces {
-		index, offset, length, err = peer.pieceManager.GetUncheckedChunk(i)
+	if len(missing_pieces) == 0 {
+		peer.downloaded = true
+		return
+	}
 
-		if err != nil && i == totalPieces-1 {
-			peer.downloaded = true
-			return
-		} else if err != nil {
-			continue
-		} else {
-			break
+	uncheckedChunks := [][3]int{}
+	for _, index := range missing_pieces {
+		uncheckedChunks = append(uncheckedChunks, peer.pieceManager.GetUncheckedChunks(index, UNCHECKED_CHUNKS_PER_PIECE)...)
+	}
+
+	for _, chunk := range uncheckedChunks {
+		for peerId, peerInfo := range peer.peers {
+			if peerInfo.Bitfield[chunk[INDEX]] {
+				go performSendRequestToPeer(peer.notificationChannel, peerInfo.Connection, peerId, chunk[INDEX], chunk[OFFSET], chunk[LENGTH])
+				break
+			}
 		}
-	}
-
-	var peerId string
-	var connection net.Conn
-	for id, info := range peer.peers {
-		peerId = id
-		connection = info.Connection
-		break
-	}
-
-	if connection != nil {
-		go performSendRequestToPeer(peer.notificationChannel, connection, peerId, index, offset, length)
 	}
 
 	if !peer.downloaded {
@@ -266,7 +256,9 @@ func (peer *Peer) handlePeerBitfieldNotification(notification peerBitfieldNotifi
 		return
 	}
 
+	// Add bitfield to peer's info
 	info.Bitfield = notification.Bitfield
+	peer.peers[notification.PeerId] = info
 	fmt.Printf("LOG: a bitfield-message was received from: %v\n", notification.PeerId)
 }
 
@@ -308,6 +300,18 @@ func (peer *Peer) handlePieceVerifiedNotification(notification pieceVerification
 		fmt.Printf("LOG: piece %v was corrupted\n", notification.Index)
 		peer.pieceManager.UncheckPiece(notification.Index)
 	}
+}
+
+// Calculate the amount of bytes left to download
+func (peer *Peer) bytesLeft() int {
+	// Calculate the amount of bytes left to download
+	left := 0
+	if !peer.downloaded {
+		for range peer.pieceManager.GetUncheckedPieces() {
+			left += int(peer.torrentData.PieceLength)
+		}
+	}
+	return left
 }
 
 func (peer *Peer) checkAllPieces() error {

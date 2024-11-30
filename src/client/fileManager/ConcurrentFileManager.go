@@ -17,7 +17,7 @@ type concurrentFileManager struct {
 
 // **Public methods
 
-func New(fileInfos []common.FileInfo) (FileManager, error) {
+func New(directory string, fileInfos []common.FileInfo) (FileManager, error) {
 	fileManager := concurrentFileManager{
 		files:           []metaFile{},
 		mutex:           sync.Mutex{},
@@ -26,7 +26,7 @@ func New(fileInfos []common.FileInfo) (FileManager, error) {
 	fileIndex := 0
 
 	for _, info := range fileInfos {
-		file, err := extractFile(info.Path)
+		file, err := extractFile(directory + info.Path)
 		if err != nil {
 			return nil, err
 		}
