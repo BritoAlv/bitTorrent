@@ -57,15 +57,7 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 	}
 }
 
-func performListen(notificationChannel chan interface{}, address common.Address, sourceId string, infohash [20]byte) {
-	listener, err := net.Listen("tcp", address.Ip+":"+address.Port)
-
-	if err != nil {
-		fmt.Println("ERROR: could not start listening: " + err.Error())
-		notificationChannel <- killNotification{}
-		return
-	}
-
+func performListen(notificationChannel chan interface{}, listener net.Listener, sourceId string, infohash [20]byte) {
 	fmt.Println("LOG: start listening")
 	for {
 		connection, err := listener.Accept()
