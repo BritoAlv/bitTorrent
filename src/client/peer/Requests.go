@@ -35,6 +35,8 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 
 	// Check if connection could not be established, if so then stop
 	if err != nil {
+		fmt.Println("ERROR: connection could not be established: " + err.Error())
+		notificationChannel <- removePeerNotification{PeerId: targetId}
 		return
 	}
 
@@ -45,9 +47,12 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 		Infohash: infohash,
 		Id:       sourceId,
 	})
+
 	// Check if handshaking could not be done, if so then stop
 	if err != nil {
+		fmt.Println("ERROR: an error occurred while performing handshaking: " + err.Error())
 		connection.Close()
+		notificationChannel <- removePeerNotification{PeerId: targetId}
 		return
 	}
 }
