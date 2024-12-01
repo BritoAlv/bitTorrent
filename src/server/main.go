@@ -11,7 +11,7 @@ func main() {
 	// Create a tracker somewhere.
 	tracker1 := TrackerNode.NewHttpTracker("1234", "MyHTTPServer")
 	// Create a torrent file with the tracker's URL.
-	err := common.CreateTorrentFile("main.go", tracker1.SaveTorrent(), false)
+	err := common.CreateTorrentFile("main.go", "main1", tracker1.SaveTorrent(), false)
 	if err != nil {
 		fmt.Println(err.Error())
 		return

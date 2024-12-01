@@ -1,33 +1,35 @@
 package main
 
 import (
+	"bittorrent/client/peer"
 	"bittorrent/common"
 	"fmt"
-	"net/http"
+	"sync"
 )
 
 func main() {
-	trackerUrl := "http://127.0.0.1:1234/announce"
-	err := common.CreateTorrentFile("main.go", trackerUrl, false)
-	if err != nil {
-		fmt.Println(err.Error())
+	var ip, port string
+	fmt.Print("Enter IP: ")
+	fmt.Scanln(&ip)
+	fmt.Print("Enter port: ")
+	fmt.Scanln(&port)
+	torrent, err := common.ParseTorrentFile("./main1.torrent")
+	if err != nil{
+		fmt.Println(err)
 		return
 	}
-	torrent, err := common.ParseTorrentFile("./torrents/main.go.torrent")
-	if err != nil {
-		fmt.Println(err.Error())
+
+	peer, err := peer.New(common.GenerateRandomString(20), common.Address{
+		Ip:   ip,
+		Port: port,
+	}, torrent, "./")
+
+	if err != nil{
+		fmt.Println(err)
 		return
 	}
-	var request common.TrackRequest
-	request.PeerId = "Alvaro"
-	request.InfoHash = torrent.InfoHash
-	request.Ip = "127.0.0.5"
-	request.Port = "332"
-	request.Left = int(torrent.Length)
-	encoded, err := common.BuildHttpUrl(trackerUrl, request)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	http.Get(encoded)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	peer.Torrent(&wg)
+	wg.Wait()
 }

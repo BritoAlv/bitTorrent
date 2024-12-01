@@ -2,10 +2,11 @@ package common
 
 import (
 	"fmt"
-	"github.com/zeebo/bencode"
 	"net"
 	"net/url"
 	"strconv"
+
+	"github.com/zeebo/bencode"
 )
 
 const InfoHash = "info_hash"
@@ -25,20 +26,8 @@ func DecodeStrByt(s string) ([20]byte, error) {
 }
 
 // EncodeResponse /*
-func EncodeResponse(response TrackResponse, ok bool) ([]byte, error) {
-	if ok {
-		var okey TrackSuccessResponse
-		okey.Interval = response.Interval
-		okey.Peers = response.Peers
-		result, err := bencode.EncodeBytes(okey)
-		if err != nil {
-			return []byte{}, err
-		}
-		return result, nil
-	}
-	var error TrackFailureResponse
-	error.FailureReason = response.FailureReason
-	result, err := bencode.EncodeBytes(error)
+func EncodeResponse(response TrackResponse) ([]byte, error) {
+	result, err := bencode.EncodeBytes(response)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -65,7 +54,7 @@ func BuildHttpUrl(trackerUrl string, request TrackRequest) (string, error) {
 // DecodeTrackerResponse /*
 func DecodeTrackerResponse(bytes []byte) (TrackResponse, error) {
 	var response TrackResponse
-	err := bencode.DecodeBytes(bytes, response)
+	err := bencode.DecodeBytes(bytes, &response)
 	if err != nil {
 		return TrackResponse{}, err
 	}

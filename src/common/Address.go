@@ -1,6 +1,6 @@
 package common
 
 type Address struct {
-	Ip   string
-	Port string
+	Ip   string 
+	Port string 
 }

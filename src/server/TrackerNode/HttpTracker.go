@@ -56,14 +56,14 @@ func (tracker HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Reque
 		message := "InfoHash not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	}
 	request.InfoHash, err = common.DecodeStrByt(r.Form[common.InfoHash][0])
 	if err != nil {
 		tracker.logger.WriteToFileError(fmt.Sprintf("Failed to decode the InfoHash to bytes: %s", err.Error()))
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	}
 
@@ -71,14 +71,14 @@ func (tracker HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Reque
 		message := "PeerId not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	}
 	request.PeerId, err = url.QueryUnescape(r.Form[common.PeerId][0])
 	if err != nil {
 		tracker.logger.WriteToFileError(fmt.Sprintf("Failed to unescape the PeerId : %s", err.Error()))
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	}
 
@@ -87,7 +87,7 @@ func (tracker HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Reque
 		if err != nil {
 			tracker.logger.WriteToFileError(fmt.Sprintf("Failed to split host and port from remote address: %s", err.Error()))
 			response.FailureReason = err.Error()
-			tracker.sendResponse(w, response, false)
+			tracker.sendResponse(w, response)
 			return
 		}
 		request.Ip = host
@@ -100,7 +100,7 @@ func (tracker HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Reque
 		message := "Port not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	}
 	request.Port = r.Form[common.Port][0]
@@ -109,21 +109,21 @@ func (tracker HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Reque
 		message := "Left not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	}
 	request.Left, err = strconv.Atoi(r.Form[common.Left][0])
 	if err != nil {
 		tracker.logger.WriteToFileError(fmt.Sprintf("Failed to convert left to int: %s", err.Error()))
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	}
 	err = common.ValidateRequest(request)
 	if err != nil {
 		tracker.logger.WriteToFileError(fmt.Sprintf("Failed to validate request: %s", err.Error()))
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response, false)
+		tracker.sendResponse(w, response)
 		return
 	} 		
 	tracker.logger.WriteToFileOK(fmt.Sprintf("Received request was decoded and its valid: %v", request))
@@ -134,11 +134,11 @@ func (tracker HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Reque
 	}
 	
 	tracker.logger.WriteToFileOK(fmt.Sprintf("Will send this response: %v", response))
-	tracker.sendResponse(w, response, true)
+	tracker.sendResponse(w, response)
 }
 
-func (tracker HttpTracker) sendResponse(w http.ResponseWriter, response common.TrackResponse, ok bool) {
-	responseEncoded, err := common.EncodeResponse(response, ok)
+func (tracker HttpTracker) sendResponse(w http.ResponseWriter, response common.TrackResponse) {
+	responseEncoded, err := common.EncodeResponse(response)
 	if err != nil {
 		tracker.logger.WriteToFileError(fmt.Sprintf("Failed to encode response: %s", err.Error()))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
