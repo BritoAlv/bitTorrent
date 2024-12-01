@@ -1,10 +1,11 @@
 package peer
 
 import (
-	"bittorrent/client/fileManager"
 	"bittorrent/client/pieceManager"
 	"bittorrent/client/tracker"
 	"bittorrent/common"
+	"bittorrent/fileManager"
+	"bittorrent/torrent"
 	"fmt"
 	"net"
 	"strings"
@@ -19,7 +20,7 @@ type Peer struct {
 	notificationChannel chan interface{}
 	address             common.Address            // Peer's address
 	listener            net.Listener              // Peer's listener
-	torrentData         common.Torrent            // Torrent associated data
+	torrentData         torrent.Torrent           // Torrent associated data
 	peers               map[string]PeerInfo       // Neighbor peers. It's a <PeerId, PeerInfo> dictionary
 	tempPeers           map[string]common.Address // Peers being currently processed, might or not be official neighbors. This property can be refactor in the future
 
@@ -32,7 +33,7 @@ type Peer struct {
 	getAbsoluteOffset func(int, int) int // Function that calculates the absolute offset from index and relative-offset
 }
 
-func New(id string, listener net.Listener, torrent common.Torrent, downloadDirectory string) (Peer, error) {
+func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDirectory string) (Peer, error) {
 	splitAddress := strings.Split(listener.Addr().String(), ":")
 
 	peer := Peer{}

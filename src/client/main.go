@@ -3,6 +3,7 @@ package main
 import (
 	"bittorrent/client/peer"
 	"bittorrent/common"
+	"bittorrent/torrent"
 	"fmt"
 	"net"
 	"os"
@@ -20,7 +21,7 @@ func main() {
 	downloadDirectory := os.Args[2]
 	ip := os.Args[3]
 
-	torrent, err := common.ParseTorrentFile(torrentFileName)
+	torrent, err := torrent.ParseTorrentFile(torrentFileName)
 	if err != nil {
 		fmt.Println(err)
 		return

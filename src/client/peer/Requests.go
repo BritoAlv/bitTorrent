@@ -1,10 +1,10 @@
 package peer
 
 import (
-	"bittorrent/client/fileManager"
 	"bittorrent/client/messenger"
 	"bittorrent/client/tracker"
 	"bittorrent/common"
+	"bittorrent/fileManager"
 	"crypto/sha1"
 	"fmt"
 	"net"
