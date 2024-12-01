@@ -8,13 +8,17 @@ import (
 )
 
 func main() {
-	var ip, port string
+	fmt.Println("Given an IP, port and torrentPath this will start a peer bounded to those")
+	var ip, port, torrentPath string
 	fmt.Print("Enter IP: ")
 	fmt.Scanln(&ip)
 	fmt.Print("Enter port: ")
 	fmt.Scanln(&port)
-	torrent, err := common.ParseTorrentFile("./main1.torrent")
-	if err != nil{
+	fmt.Print("Enter torrentPath: ")
+	fmt.Scanln(&torrentPath)
+
+	torrent, err := common.ParseTorrentFile(torrentPath)
+	if err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -24,7 +28,7 @@ func main() {
 		Port: port,
 	}, torrent, "./")
 
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 		return
 	}

@@ -27,12 +27,12 @@ func NewHttpTracker(url string, name string) TrackerNode {
 }
 
 func (tracker HttpTracker) SaveTorrent() string {
-	return "http://localhost:" + tracker.Location + "/announce"
+	return "http://" + tracker.Location + "/announce"
 }
 
 func (tracker HttpTracker) Listen() error {
 	http.HandleFunc("/announce", tracker.handlePeersQuery)
-	err := http.ListenAndServe(":"+tracker.Location, nil)
+	err := http.ListenAndServe(tracker.Location, nil)
 	if err != nil {
 		tracker.logger.WriteToFileError(fmt.Sprintf("Listen and Serve failed %s", err.Error()))
 		return err
@@ -125,14 +125,14 @@ func (tracker HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Reque
 		response.FailureReason = err.Error()
 		tracker.sendResponse(w, response)
 		return
-	} 		
+	}
 	tracker.logger.WriteToFileOK(fmt.Sprintf("Received request was decoded and its valid: %v", request))
 	response, err = tracker.solve(request)
 	if err != nil {
 		tracker.logger.WriteToFileError(fmt.Sprintf("Failed to solve request: %s", err.Error()))
 		response.FailureReason = err.Error()
 	}
-	
+
 	tracker.logger.WriteToFileOK(fmt.Sprintf("Will send this response: %v", response))
 	tracker.sendResponse(w, response)
 }
