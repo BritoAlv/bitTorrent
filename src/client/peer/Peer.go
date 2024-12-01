@@ -21,6 +21,7 @@ type Peer struct {
 	tracker             tracker.Tracker
 	fileManager         fileManager.FileManager
 	pieceManager        pieceManager.PieceManager
+	tempPeers           map[string]common.Address
 	downloaded          bool
 	getAbsoluteOffset   func(int, int) int // function that calculates the absolute offset from index and relative-offset
 }
@@ -32,8 +33,9 @@ func New(id string, address common.Address, torrent common.Torrent, downloadDire
 	peer.torrentData = torrent
 	peer.notificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
+	peer.tempPeers = make(map[string]common.Address)
 
-	peer.tracker = tracker.CentralizedTracker{Url: torrent.Announce}
+	peer.tracker = tracker.CentralizedHttpTracker{Url: torrent.Announce}
 
 	length := 0
 	var files []common.FileInfo
@@ -141,7 +143,7 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 	// Check if the file is not downloaded and neighbor-peers are less than the established bound
 	if !peer.downloaded && len(peer.peers) < PEERS_LOWER_BOUND {
 		for id, address := range notification.Response.Peers {
-			if _, contains := peer.peers[id]; !contains {
+			if peer.isValidNeighbor(id, address) {
 				go performAddPeer(peer.notificationChannel, peer.Id, id, address, peer.torrentData.InfoHash)
 			}
 		}
@@ -202,13 +204,14 @@ func (peer *Peer) handleAddPeerNotification(notification addPeerNotification) {
 
 	peer.peers[notification.PeerId] = PeerInfo{
 		Connection: notification.Connection,
-		Bitfield:   nil,
+		Bitfield:   make([]bool, len(peer.pieceManager.Bitfield())),
 		IsChoker:   false,
 		IsChoked:   false,
 	}
 }
 
 func (peer *Peer) handleRemovePeerNotification(notification removePeerNotification) {
+	delete(peer.tempPeers, notification.PeerId) // Make sure any temporal peer is removed
 	info, contains := peer.peers[notification.PeerId]
 
 	if !contains {
@@ -281,9 +284,6 @@ func (peer *Peer) handlePeerPieceNotification(notification peerPieceNotification
 }
 
 func (peer *Peer) handleWriteNotification(notification writeNotification) {
-	// if peer.pieceManager.VerifyPiece(notification.Index) || peer.pieceManager.VerifyChunk(notification.Index, notification.Offset) {
-	// 	return
-	// }
 
 	checkedPiece := peer.pieceManager.CheckChunk(notification.Index, notification.Offset)
 
@@ -318,7 +318,40 @@ func (peer *Peer) handlePeerHaveNotification(notification peerHaveNotification) 
 	// Update peer's info's bitfield
 	info.Bitfield[notification.Index] = true
 	peer.peers[notification.PeerId] = info
-	fmt.Printf("LOG: a have-message with index %v was received from: %v", notification.Index, notification.PeerId)
+	fmt.Printf("LOG: a have-message with index %v was received from: %v \n", notification.Index, notification.PeerId)
+}
+
+func (peer *Peer) isValidNeighbor(neighborId string, address common.Address) bool {
+	// Check neighbor's id and address are different from peer's
+	if peer.Id == neighborId || peer.address == address {
+		return false
+	}
+
+	// Check neighbor is not already registered
+	_, contains := peer.peers[neighborId]
+	if contains {
+		return false
+	}
+
+	// Check neighbor address is not already registered
+	addressStr := address.Ip + ":" + address.Port
+	for _, peerInfo := range peer.peers {
+		if peerInfo.Connection.RemoteAddr().String() == addressStr {
+			return false
+		}
+	}
+
+	// Check the id/address are not being temporary processed
+	for peerId, tempAddress := range peer.tempPeers {
+		tempAddressStr := tempAddress.Ip + ":" + tempAddress.Port
+		if peerId == neighborId || tempAddressStr == addressStr {
+			return false
+		}
+	}
+
+	// Add address to temporary processed ones
+	peer.tempPeers[neighborId] = address
+	return true
 }
 
 // Calculate the amount of bytes left to download
