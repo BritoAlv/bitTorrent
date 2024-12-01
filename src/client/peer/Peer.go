@@ -1,11 +1,14 @@
 package peer
 
 import (
-	"bittorrent/client/fileManager"
 	"bittorrent/client/pieceManager"
 	"bittorrent/client/tracker"
 	"bittorrent/common"
+	"bittorrent/fileManager"
+	"bittorrent/torrent"
 	"fmt"
+	"net"
+	"strings"
 	"sync"
 )
 
@@ -13,23 +16,30 @@ import (
 type Peer struct {
 	Id string
 
-	// Private properties
-	address             common.Address
-	torrentData         common.Torrent
+	//** Private properties
 	notificationChannel chan interface{}
-	peers               map[string]PeerInfo // Peers is a <PeerId, PeerInfo> dictionary
-	tracker             tracker.Tracker
-	fileManager         fileManager.FileManager
-	pieceManager        pieceManager.PieceManager
-	tempPeers           map[string]common.Address
-	downloaded          bool
-	getAbsoluteOffset   func(int, int) int // function that calculates the absolute offset from index and relative-offset
+	address             common.Address            // Peer's address
+	listener            net.Listener              // Peer's listener
+	torrentData         torrent.Torrent           // Torrent associated data
+	peers               map[string]PeerInfo       // Neighbor peers. It's a <PeerId, PeerInfo> dictionary
+	tempPeers           map[string]common.Address // Peers being currently processed, might or not be official neighbors. This property can be refactor in the future
+
+	// Interfaces
+	tracker      tracker.Tracker
+	fileManager  fileManager.FileManager
+	pieceManager pieceManager.PieceManager
+
+	downloaded        bool               // File downloaded flag
+	getAbsoluteOffset func(int, int) int // Function that calculates the absolute offset from index and relative-offset
 }
 
-func New(id string, address common.Address, torrent common.Torrent, downloadDirectory string) (Peer, error) {
+func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDirectory string) (Peer, error) {
+	splitAddress := strings.Split(listener.Addr().String(), ":")
+
 	peer := Peer{}
 	peer.Id = id
-	peer.address = address
+	peer.address = common.Address{Ip: splitAddress[0], Port: splitAddress[1]}
+	peer.listener = listener
 	peer.torrentData = torrent
 	peer.notificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
@@ -50,6 +60,7 @@ func New(id string, address common.Address, torrent common.Torrent, downloadDire
 		for _, info := range files {
 			length += info.Length
 		}
+		downloadDirectory += "/" + torrent.Name
 	}
 
 	var err error
@@ -88,7 +99,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		// Event:    "started",
 	}
 
-	go performListen(peer.notificationChannel, peer.address, peer.Id, peer.torrentData.InfoHash)
+	go performListen(peer.notificationChannel, peer.listener, peer.Id, peer.torrentData.InfoHash)
 	go performTrack(peer.notificationChannel, peer.tracker, trackerRequest, 0)
 	if !peer.downloaded {
 		go performDownload(peer.notificationChannel, 2)
@@ -191,7 +202,7 @@ func (peer *Peer) handleDownloadNotification() {
 	}
 
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 1)
+		go performDownload(peer.notificationChannel, 5)
 	}
 }
 

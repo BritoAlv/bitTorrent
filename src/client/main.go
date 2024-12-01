@@ -3,35 +3,45 @@ package main
 import (
 	"bittorrent/client/peer"
 	"bittorrent/common"
+	"bittorrent/torrent"
 	"fmt"
+	"net"
+	"os"
 	"sync"
 )
 
 func main() {
-	fmt.Println("Given an IP, port and torrentPath this will start a peer bounded to those")
-	var ip, port, torrentPath string
-	fmt.Print("Enter IP: ")
-	fmt.Scanln(&ip)
-	fmt.Print("Enter port: ")
-	fmt.Scanln(&port)
-	fmt.Print("Enter torrentPath: ")
-	fmt.Scanln(&torrentPath)
+	if len(os.Args) != 4 {
+		fmt.Println("ERROR: expecting 2 arguments: torrent file, download directory and ip")
+		os.Exit(1)
+		return
+	}
 
-	torrent, err := common.ParseTorrentFile(torrentPath)
+	torrentFileName := os.Args[1]
+	downloadDirectory := os.Args[2]
+	ip := os.Args[3]
+
+	torrent, err := torrent.ParseTorrentFile(torrentFileName)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	peer, err := peer.New(common.GenerateRandomString(20), common.Address{
-		Ip:   ip,
-		Port: port,
-	}, torrent, "./")
-
+	peerId := common.GenerateRandomString(20)
+	listener, err := net.Listen("tcp", ip+":")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
+		os.Exit(1)
 		return
 	}
+
+	peer, err := peer.New(peerId, listener, torrent, downloadDirectory)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+		return
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	peer.Torrent(&wg)

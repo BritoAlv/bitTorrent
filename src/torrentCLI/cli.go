@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bittorrent/common"
+	"bittorrent/torrent"
 	"fmt"
 )
 
@@ -16,7 +16,7 @@ func main() {
 	fmt.Scanln(&torrentname)
 	fmt.Print("Enter the tracker location: ")
 	fmt.Scanln(&trackerLocation)
-	err := common.CreateTorrentFile(filename, torrentname, trackerLocation, false)
+	err := torrent.CreateTorrentFile(filename, torrentname, trackerLocation)
 	if err != nil {
 		fmt.Println(err.Error())
 	} else {
