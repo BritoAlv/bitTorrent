@@ -60,6 +60,7 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 		for _, info := range files {
 			length += info.Length
 		}
+		downloadDirectory += "/" + torrent.Name
 	}
 
 	var err error

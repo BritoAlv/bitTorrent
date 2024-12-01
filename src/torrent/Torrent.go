@@ -97,17 +97,30 @@ func ParseTorrentFile(fileName string) (Torrent, error) {
 }
 
 func CreateTorrentFile(targetPath string, torrentName string, announceUrl string) error {
+	name := path.Base(targetPath)
+
 	length, fileInfos, err := processPath(targetPath)
 	if err != nil {
 		return err
 	}
 
-	manager, err := fileManager.New("./", fileInfos)
+	var isFile bool
+	if fileInfos == nil {
+		isFile = true
+		fileInfos = []common.FileInfo{
+			{
+				Length: int(length),
+				Path:   targetPath,
+			},
+		}
+		targetPath = ""
+	}
+
+	manager, err := fileManager.New(targetPath, fileInfos)
 	if err != nil {
 		return err
 	}
 
-	name := path.Base(targetPath)
 	pieceLength := int(math.Pow(2, 18))
 	totalPieces := common.GetTotalPieces(int(length), pieceLength)
 
@@ -135,7 +148,7 @@ func CreateTorrentFile(targetPath string, torrentName string, announceUrl string
 	}
 
 	var torrentInfo map[string]interface{}
-	if fileInfos == nil {
+	if isFile {
 		torrentInfo = map[string]interface{}{
 			_NAME:         name,
 			_PIECE_LENGTH: pieceLength,
@@ -148,7 +161,7 @@ func CreateTorrentFile(targetPath string, torrentName string, announceUrl string
 		for _, fileInfo := range fileInfos {
 			files = append(files, map[string]interface{}{
 				"length": fileInfo.Length,
-				"path":   strings.Split(fileInfo.Path, "/")[2:],
+				"path":   strings.Split(fileInfo.Path, "/")[1:],
 			})
 		}
 
@@ -298,7 +311,7 @@ func processPath(targetPath string) (length int64, files []common.FileInfo, err 
 		return length, nil, nil
 	} else {
 		length := 0
-		fileInfos, err := extractFileInfos(targetPath)
+		fileInfos, err := extractFileInfos(targetPath, true)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -310,7 +323,7 @@ func processPath(targetPath string) (length int64, files []common.FileInfo, err 
 	}
 }
 
-func extractFileInfos(directory string) ([]common.FileInfo, error) {
+func extractFileInfos(directory string, root bool) ([]common.FileInfo, error) {
 	fileInfos := []common.FileInfo{}
 	dirEntries, err := os.ReadDir(directory)
 	if err != nil {
@@ -321,13 +334,15 @@ func extractFileInfos(directory string) ([]common.FileInfo, error) {
 
 	for _, dirEntry := range dirEntries {
 		if dirEntry.IsDir() {
-			infos, err := extractFileInfos(directory + "/" + dirEntry.Name())
+			infos, err := extractFileInfos(directory+"/"+dirEntry.Name(), false)
 			if err != nil {
 				return nil, err
 			}
 
 			for _, info := range infos {
-				info.Path = baseName + info.Path
+				if !root {
+					info.Path = baseName + info.Path
+				}
 				fileInfos = append(fileInfos, info)
 			}
 		} else {
@@ -336,9 +351,16 @@ func extractFileInfos(directory string) ([]common.FileInfo, error) {
 				return nil, err
 			}
 
+			var pathStr string
+			if !root {
+				pathStr = baseName + "/" + info.Name()
+			} else {
+				pathStr = "/" + info.Name()
+			}
+
 			fileInfo := common.FileInfo{
 				Length: int(info.Size()),
-				Path:   baseName + "/" + info.Name(),
+				Path:   pathStr,
 			}
 			fileInfos = append(fileInfos, fileInfo)
 		}
