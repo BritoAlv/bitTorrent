@@ -70,15 +70,11 @@ func encodeHaveMessage(message HaveMessage) []byte {
 func encodeBitfieldMessage(message BitfieldMessage) []byte {
 	messageStr := strconv.Itoa(_BITFIELD_MESSAGE) + ";"
 
-	for i, bit := range message.Bitfield {
+	for _, bit := range message.Bitfield {
 		if bit {
 			messageStr += "1"
 		} else {
 			messageStr += "0"
-		}
-
-		if i < len(message.Bitfield)-1 {
-			messageStr += ";"
 		}
 	}
 
@@ -136,19 +132,16 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 	}
 
 	messageStr := string(messageBytes)
-	messageSplits := strings.SplitN(messageStr, ";", 4)
+	messageSplits := strings.SplitN(messageStr, ";", 2)
 	messageType, err := strconv.Atoi(messageSplits[0])
 
 	if err != nil {
 		return nil, err
 	}
 
-	// Ignore first type-split for now on
-	messageSplits = messageSplits[1:]
-
 	switch messageType {
 	case _HANDSHAKE_MESSAGE:
-		return decodeHandshakeMessage(messageSplits)
+		return decodeHandshakeMessage(messageStr)
 	case _CHOKE_MESSAGE:
 		return ChokeMessage{}, nil
 	case _UNCHOKE_MESSAGE:
@@ -158,28 +151,31 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 	case _NOT_INTERESTED_MESSAGE:
 		return NotInterestedMessage{}, nil
 	case _HAVE_MESSAGE:
-		return decodeHaveMessage(messageSplits)
+		return decodeHaveMessage(messageStr)
 	case _BITFIELD_MESSAGE:
-		return decodeBitfieldMessage(messageSplits)
+		return decodeBitfieldMessage(messageStr)
 	case _REQUEST_MESSAGE:
-		return decodeRequestMessage(messageSplits)
+		return decodeRequestMessage(messageStr)
 	case _PIECE_MESSAGE:
-		return decodePieceMessage(messageSplits)
+		return decodePieceMessage(messageStr)
 	case _CANCEL_MESSAGE:
-		return decodeCancelMessage(messageSplits)
+		return decodeCancelMessage(messageStr)
 	default:
 		return nil, errors.New("invalid message type")
 	}
 }
 
-func decodeHandshakeMessage(messageSplits []string) (HandshakeMessage, error) {
-	if len(messageSplits) != 2 {
+func decodeHandshakeMessage(messageStr string) (HandshakeMessage, error) {
+	messageSplits := strings.SplitN(messageStr, ";", 3)
+	handshakeSplits := messageSplits[1:]
+
+	if len(handshakeSplits) != 2 {
 		return HandshakeMessage{}, errors.New("invalid handshake-message payload")
 	}
 
-	id := string(messageSplits[0])
+	id := string(handshakeSplits[0])
 
-	infohashSlice := []byte(messageSplits[1])
+	infohashSlice := []byte(handshakeSplits[1])
 	if len(infohashSlice) != 20 {
 		return HandshakeMessage{}, errors.New("invalid handshake-message payload")
 	}
@@ -191,12 +187,15 @@ func decodeHandshakeMessage(messageSplits []string) (HandshakeMessage, error) {
 	}, nil
 }
 
-func decodeHaveMessage(messageSplits []string) (HaveMessage, error) {
-	if len(messageSplits) != 1 {
+func decodeHaveMessage(messageStr string) (HaveMessage, error) {
+	messageSplits := strings.SplitN(messageStr, ";", 2)
+	haveSplits := messageSplits[1:]
+
+	if len(haveSplits) != 1 {
 		return HaveMessage{}, errors.New("invalid have-message payload")
 	}
 
-	index, err := strconv.Atoi(messageSplits[0])
+	index, err := strconv.Atoi(haveSplits[0])
 	if err != nil {
 		return HaveMessage{}, errors.New("invalid have-message payload")
 	}
@@ -204,13 +203,19 @@ func decodeHaveMessage(messageSplits []string) (HaveMessage, error) {
 	return HaveMessage{Index: index}, nil
 }
 
-func decodeBitfieldMessage(messageSplits []string) (BitfieldMessage, error) {
-	messageSplits = append(messageSplits[:2], strings.Split(messageSplits[2], ";")...)
+func decodeBitfieldMessage(messageStr string) (BitfieldMessage, error) {
+	messageSplits := strings.SplitN(messageStr, ";", 2)
+	bitfieldSplits := messageSplits[1:]
+
+	if len(bitfieldSplits) != 1 {
+		return BitfieldMessage{}, errors.New("invalid bitfield-message payload")
+	}
+
 	bitfield := []bool{}
-	for _, bit := range messageSplits {
-		if bit == "1" {
+	for _, bit := range bitfieldSplits[0] {
+		if bit == 49 {
 			bitfield = append(bitfield, true)
-		} else if bit == "0" {
+		} else if bit == 48 {
 			bitfield = append(bitfield, false)
 		} else {
 			return BitfieldMessage{}, errors.New("invalid bitfield-message payload")
@@ -220,22 +225,25 @@ func decodeBitfieldMessage(messageSplits []string) (BitfieldMessage, error) {
 	return BitfieldMessage{Bitfield: bitfield}, nil
 }
 
-func decodeRequestMessage(messageSplits []string) (RequestMessage, error) {
-	if len(messageSplits) != 3 {
+func decodeRequestMessage(messageStr string) (RequestMessage, error) {
+	messageSplits := strings.SplitN(messageStr, ";", 4)
+	requestSplits := messageSplits[1:]
+
+	if len(requestSplits) != 3 {
 		return RequestMessage{}, errors.New("invalid request-message payload")
 	}
 
-	index, err := strconv.Atoi(messageSplits[0])
+	index, err := strconv.Atoi(requestSplits[0])
 	if err != nil {
 		return RequestMessage{}, errors.New("invalid request-message payload")
 	}
 
-	offset, err := strconv.Atoi(messageSplits[1])
+	offset, err := strconv.Atoi(requestSplits[1])
 	if err != nil {
 		return RequestMessage{}, errors.New("invalid request-message payload")
 	}
 
-	length, err := strconv.Atoi(messageSplits[2])
+	length, err := strconv.Atoi(requestSplits[2])
 	if err != nil {
 		return RequestMessage{}, errors.New("invalid request-message payload")
 	}
@@ -247,22 +255,25 @@ func decodeRequestMessage(messageSplits []string) (RequestMessage, error) {
 	}, nil
 }
 
-func decodePieceMessage(messageSplits []string) (PieceMessage, error) {
-	if len(messageSplits) != 3 {
+func decodePieceMessage(messageStr string) (PieceMessage, error) {
+	messageSplits := strings.SplitN(messageStr, ";", 4)
+	pieceSplits := messageSplits[1:]
+
+	if len(pieceSplits) != 3 {
 		return PieceMessage{}, errors.New("invalid piece-message payload")
 	}
 
-	index, err := strconv.Atoi(messageSplits[0])
+	index, err := strconv.Atoi(pieceSplits[0])
 	if err != nil {
 		return PieceMessage{}, errors.New("invalid piece-message payload")
 	}
 
-	offset, err := strconv.Atoi(messageSplits[1])
+	offset, err := strconv.Atoi(pieceSplits[1])
 	if err != nil {
 		return PieceMessage{}, errors.New("invalid piece-message payload")
 	}
 
-	bytes := []byte(messageSplits[2])
+	bytes := []byte(pieceSplits[2])
 
 	return PieceMessage{
 		Index:  index,
@@ -271,22 +282,25 @@ func decodePieceMessage(messageSplits []string) (PieceMessage, error) {
 	}, nil
 }
 
-func decodeCancelMessage(messageSplits []string) (CancelMessage, error) {
-	if len(messageSplits) != 3 {
+func decodeCancelMessage(messageStr string) (CancelMessage, error) {
+	messageSplits := strings.SplitN(messageStr, ";", 4)
+	cancelSplits := messageSplits[1:]
+
+	if len(cancelSplits) != 3 {
 		return CancelMessage{}, errors.New("invalid cancel-message payload")
 	}
 
-	index, err := strconv.Atoi(messageSplits[0])
+	index, err := strconv.Atoi(cancelSplits[0])
 	if err != nil {
 		return CancelMessage{}, errors.New("invalid cancel-message payload")
 	}
 
-	offset, err := strconv.Atoi(messageSplits[1])
+	offset, err := strconv.Atoi(cancelSplits[1])
 	if err != nil {
 		return CancelMessage{}, errors.New("invalid cancel-message payload")
 	}
 
-	length, err := strconv.Atoi(messageSplits[2])
+	length, err := strconv.Atoi(cancelSplits[2])
 	if err != nil {
 		return CancelMessage{}, errors.New("invalid cancel-message payload")
 	}

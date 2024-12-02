@@ -162,7 +162,7 @@ func (tracker HttpTracker) solve(request common.TrackRequest) (common.TrackRespo
 
 	var ans common.TrackResponse
 	ans.FailureReason = ""
-	ans.Interval = 10000
+	ans.Interval = 5
 
 	if _, exist := tracker.peers[request.InfoHash]; !exist {
 		tracker.logger.WriteToFileOK(fmt.Sprintf("New entry for info hash %v", request.InfoHash))
