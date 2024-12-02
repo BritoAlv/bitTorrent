@@ -11,12 +11,22 @@ RUN go mod download && go mod verify
 RUN mkdir ./client
 COPY client ./client/
 
+COPY clientRouteSetup.sh ./
+
 # copy common folder.
 RUN mkdir ./common
 COPY common ./common/
+
+RUN mkdir ./torrent
+COPY torrent ./torrent/
+
+RUN mkdir ./fileManager
+COPY fileManager ./fileManager/
 
 # copy common folder.
 RUN mkdir ./torrentCLI
 COPY torrentCLI ./torrentCLI/
 
 RUN go get ./common
+RUN go get ./torrent
+RUN go get ./fileManager

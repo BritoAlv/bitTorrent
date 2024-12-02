@@ -11,8 +11,11 @@ RUN go mod download && go mod verify
 RUN mkdir ./server
 COPY server ./server/
 
+COPY serverRouteSetup.sh ./
+
 # copy common folder.
 RUN mkdir ./common
 COPY common ./common/
 
 RUN go get ./common
+
