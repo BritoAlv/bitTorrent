@@ -1,7 +1,7 @@
 To run the project, using Docker:
 
 ```shell
-docker-compose up -d
+docker compose up -d
 ```
 
 That will set up everything and starts the docker containers needed server, client and router.
