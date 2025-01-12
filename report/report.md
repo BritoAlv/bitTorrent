@@ -32,3 +32,13 @@ Decidimos utilizar Go para implementar los clientes, dado que las goroutines (hi
 **Nota**: Imagen extraída de: *M. van Steen and A.S. Tanenbaum, Distributed Systems, 4th ed., distributed-systems.net, 2023*
 
 ### 2.2 Distribución del Tracker
+
+## 3. Comunicación
+
+### 3.1 Cliente BitTorrent
+
+Para la comunicación entre clientes, utilizamos directamente la **interfaz de socket** (sobre TCP) ofrecida por el lenguaje de programación. A su vez, con el objetivo de abstraer los detalles relacionados con la interpretación y manejo de los bit enviados/recibidos, definimos una interfaz **Messenger**.
+
+Notemos que al utilizar los sockets puros solo podemos disponer de una comunicación one-to-one entre clientes; esto, por supuesto, lo tuvimos en cuenta a la hora de realizar el diseño, sin embargo, no descartamos el uso de patrones de mensajería como **ZeroMQ** (permite comunicaciones one-to-many y many-to-many) en un futuro para refactorizar y quizás optimizar el funcionamiento de cada cliente.
+
+### 3.2 Distribución del Tracker
