@@ -45,7 +45,6 @@ Decidimos utilizar Go para implementar los clientes, dado que las goroutines (hi
 
 **Nota**: Imagen extraída de: *M. van Steen and A.S. Tanenbaum, Distributed Systems, 4th ed., distributed-systems.net, 2023*
 
-
 ## 3. Comunicación
 
 ### 3.1 Cliente BitTorrent
@@ -68,6 +67,16 @@ La comunicación entre los nodos de la DHT se realiza a través de sockets. Para
 
 ## 6. Consistencia y Replicación
 
+En la red distribuida Chord ejecuta cada cierto periodo de tiempo un algoritmo de estabilización para comprobar la consistencia sobre la DHT que cada nodo posee, por ejemplo su sucesor, predecesor.
+
 Respecto a la consistencia o replicación: replicar los datos no trae consigo ningún problema, pues los usuarios solamente necesitan saber como localizar a los usuarios con su mismo objetivo (un archivo en específico, por ejemplo), sin embargo, si es necesario garantizar que sean consistentes: 
 
 La validez de la localización de un usuario se reduce a que IP, puerto está usando, algún cambio en estos hace que la información contenida en otros nodos no sea válida. Dado esta situación una posible solución es cada cierto tiempo comprobar la consistencia de los datos, (por ejemplo haciendo ping para comprobar que cierto <ip, port> está activo todavía). Esta verificación puede ser usada también para actualizar un nodo cuyo vecino se haya marchado, caído temporalmente, etc.
+
+En el contexto de BitTorrent un usuario puede publicar su .torrent en varios de los trackers disponibles, de esta forma se garantiza que si un servidor se desconecta ese usuario no quede por desconcertado. 
+
+Desde el punto de vista de Chord, una forma puede ser usando Quorums, esto consiste en replicar una llave valor en $n$ nodos, por ejemplo los sucesores de un nodo en específico.
+
+Entonces si después de una operación de escritura, se garantiza que $w$ réplicas responden satisfactoriamente y consecuentemente se hace una lectura donde responden más de $n - w$ réplicas, se puede garantizar que haya al menos una réplica en la que lo que se lee es consistente con la última operación de escritura.
+
+Esto se puede simplificar estableciendo que para que el sistema sea tolerante a fallas si cada dato se va a replicar $n$ veces, para que un dato sea consistente, una operación de escritura o lectura sobre él debe ser satisfactoria en más de $n / 2$ réplicas.
