@@ -2,7 +2,7 @@ services:
   therouter:
     build:
       context: ./routerDocker
-      dockerfile: router.Dockerfile
+      dockerfile: docker/router/router.Dockerfile
     container_name: bitrouter    
     networks:
       servers:
