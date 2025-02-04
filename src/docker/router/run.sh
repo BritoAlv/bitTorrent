@@ -1,15 +1,11 @@
-# Commands for building the docker image and start a docker container by default.
+CONTAINER_SCRIPTS_PATH=../containers/
+IMAGE_TAG=router:latest
+CWD=$(pwd)
 
-TAG=router:1.0
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <container_name> "
+    exit 1
+fi
 
-# Build the docker image
-# t: Assign a tag to the image.
-docker build -t $TAG .
-
-# Start a docker container and open a shell
-# rm: Automatically remove the container once it stops (useful for cleanup).
-# it: Run the container in interactive mode.
-# privileged: Give the container full access to the host system.
-# name: Assign a name to the container.
-# open sh.
-docker run --rm --privileged --name router-container $TAG
+CONTAINER_NAME=$1
+sh ${CONTAINER_SCRIPTS_PATH}setup_container.sh $CWD $IMAGE_TAG $CONTAINER_NAME

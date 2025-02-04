@@ -15,29 +15,4 @@ Based on that is needed the following on the project:
 - create a client in a specific network.
 - create a tracker in a specific network.
 
-
-
-
-
 To run the project via Docker:
-
-To set up everything and starts the docker containers needed: server, client and router.
-```shell
-docker compose up -d
-```
-
-All of them use alpine, so to access them run:
-```shell
-docker exec -it <containername> sh
-# container name : bitclient, bitserver or bitrouter.
-```
-
-To stop the containers run:
-```shell
-docker compose down
-```
-
-If done changes in the Dockerfiles, then
-```shell
-docker compose down --rmi all
-```

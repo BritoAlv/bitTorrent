@@ -25,10 +25,7 @@ NETWORK_NAME=$2
 echo "🔍 Checking if the container is connected to the network..."
 
 # Disconnect the container from the network
-docker network disconnect $NETWORK_NAME $CONTAINER_NAME_OR_ID
-
-# Check if the command was successful
-if [ $? -eq 0 ]; then
+if docker network disconnect "$NETWORK_NAME" "$CONTAINER_NAME_OR_ID"; then
     echo "✅ Successfully disconnected $CONTAINER_NAME_OR_ID from $NETWORK_NAME"
 else
     echo "❌ Failed to disconnect $CONTAINER_NAME_OR_ID from $NETWORK_NAME"

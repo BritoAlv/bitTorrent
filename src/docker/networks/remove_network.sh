@@ -8,10 +8,7 @@ fi
 
 NETWORK_NAME=$1
 # Remove the Docker network
-docker network rm "$NETWORK_NAME"
-
-# Check if the network was removed successfully
-if [ $? -eq 0 ]; then
+if docker network rm "$NETWORK_NAME"; then
     echo "✅ Network '$NETWORK_NAME' removed successfully."
 else
     echo "❌ Failed to remove network '$NETWORK_NAME'."
