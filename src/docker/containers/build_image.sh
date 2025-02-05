@@ -1,5 +1,5 @@
 set -e
-source ./docher/containers/check.sh
+source ./docker/containers/check.sh
 # Commands for building s docker image given a tag and a dockerfile.
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <tag> <docker_file_path>"

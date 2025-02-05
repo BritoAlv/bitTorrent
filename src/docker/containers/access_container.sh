@@ -1,5 +1,5 @@
 set -e
-source ./docher/containers/check.sh
+source ./docker/containers/check.sh
 # Check if exactly one argument is provided.
 if [ "$#" -ne 1 ]; then
     echo "❌ Usage: $0 <container_name>"

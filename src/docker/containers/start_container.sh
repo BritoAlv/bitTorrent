@@ -1,5 +1,5 @@
 set -e
-source ./docher/containers/check.sh
+source ./docker/containers/check.sh
 # Check if the correct number of arguments is provided
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <image_tag> <container_name>"
