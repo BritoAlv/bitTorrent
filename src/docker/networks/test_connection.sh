@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 # Check if two arguments are provided
 if [ "$#" -ne 2 ]; then
     echo "❌ Usage: $0 <source_container> <target_container>"
@@ -13,10 +13,5 @@ TARGET_CONTAINER=$2
 echo "🔄 Pinging $TARGET_CONTAINER from $SOURCE_CONTAINER..."
 
 # Check the exit status of the ping command
-if docker exec "$SOURCE_CONTAINER" ping -c 4 "$TARGET_CONTAINER"; then
-    echo "❌ Connection failed between $SOURCE_CONTAINER and $TARGET_CONTAINER"
-    exit 1
-else
-    echo "✅ Connection successful between $SOURCE_CONTAINER and $TARGET_CONTAINER"
-    exit 0
-fi
+docker exec "$SOURCE_CONTAINER" ping -c 4 "$TARGET_CONTAINER"
+echo "✅ Connection successful between $SOURCE_CONTAINER and $TARGET_CONTAINER"

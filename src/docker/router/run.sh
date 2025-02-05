@@ -1,3 +1,5 @@
+set -e
+
 CONTAINER_SCRIPTS_PATH=./docker/containers/
 DOCKER_FILE_PATH=./docker/client/Dockerfile
 IMAGE_TAG=router:latest
@@ -9,8 +11,4 @@ fi
 
 CONTAINER_NAME=$1
 
-if sh ${CONTAINER_SCRIPTS_PATH}setup_container.sh $DOCKER_FILE_PATH $IMAGE_TAG $CONTAINER_NAME; then 
-    exit 1
-fi
-
-exit 0
+sh ${CONTAINER_SCRIPTS_PATH}setup_container.sh $DOCKER_FILE_PATH $IMAGE_TAG $CONTAINER_NAME
