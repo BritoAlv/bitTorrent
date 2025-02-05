@@ -21,3 +21,5 @@ if ! docker network ls | grep -q "$NETWORK_NAME"; then
 else
     echo "✅ Network $NETWORK_NAME already exists."
 fi
+
+exit 0

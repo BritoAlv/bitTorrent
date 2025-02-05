@@ -1,11 +1,11 @@
 CWD=$(pwd)
 
 build_project() {
-	local dir=$1
-	local output=$2
-	cd $dir
-	go build -o $output
-	cd $CWD
+  local dir=$1
+  local output=$2
+  cd "$dir" || exit
+  go build -o "$output"
+  cd "$CWD" || exit
 }
 
 build_project client client

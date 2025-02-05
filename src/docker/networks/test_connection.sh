@@ -11,11 +11,12 @@ TARGET_CONTAINER=$2
 
 # Execute ping command from source container to target container
 echo "🔄 Pinging $TARGET_CONTAINER from $SOURCE_CONTAINER..."
-docker exec "$SOURCE_CONTAINER" ping -c 4 "$TARGET_CONTAINER"
 
 # Check the exit status of the ping command
-if [ $? -eq 0 ]; then
-    echo "✅ Connection successful between $SOURCE_CONTAINER and $TARGET_CONTAINER"
-else
+if docker exec "$SOURCE_CONTAINER" ping -c 4 "$TARGET_CONTAINER"; then
     echo "❌ Connection failed between $SOURCE_CONTAINER and $TARGET_CONTAINER"
+    exit 1
+else
+    echo "✅ Connection successful between $SOURCE_CONTAINER and $TARGET_CONTAINER"
+    exit 0
 fi

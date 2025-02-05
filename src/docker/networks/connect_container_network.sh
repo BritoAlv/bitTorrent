@@ -14,21 +14,7 @@ fi
 CONTAINER_NAME=$1
 NETWORK_NAME=$2
 
-# Check if the container exists and is running
-echo "🔍 Checking if the container '$CONTAINER_NAME' exists and is running..."
-if ! docker ps --format '{{.Names}}' | grep -w "$CONTAINER_NAME"; then
-    echo "❌ Container '$CONTAINER_NAME' does not exist or is not running."
-    exit 1
-fi
-echo "✅ Container '$CONTAINER_NAME' exists and is running."
 
-# Check if the network exists
-echo "🔍 Checking if the network '$NETWORK_NAME' exists..."
-if ! docker network ls --format '{{.Name}}' | grep -w "$NETWORK_NAME"; then
-    echo "❌ Network '$NETWORK_NAME' does not exist."
-    exit 1
-fi
-echo "✅ Network '$NETWORK_NAME' exists."
 
 # Connect the container to the network
 echo "🔗 Connecting container '$CONTAINER_NAME' to network '$NETWORK_NAME'..."

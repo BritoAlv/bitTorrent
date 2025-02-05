@@ -9,19 +9,17 @@ IMAGE_TAG=$1
 CONTAINER_NAME=$2
 
 # Check if the Docker image exists
-if ! docker images | grep -q "$IMAGE_TAG"; then
+if sh check_image.sh "$IMAGE_TAG"; then
     echo "❌ Docker image with tag '$IMAGE_TAG' does not exist."
     exit 1
 fi
-
 echo "✅ Docker image with tag '$IMAGE_TAG' found."
 
 # Check if a container with the same name is already running
-if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+if sh check_running_container.sh "$CONTAINER_NAME"; then
     echo "❌ A container with the name '$CONTAINER_NAME' is already running."
     exit 1
 fi
-
 echo "✅ No container with the name '$CONTAINER_NAME' is running."
 
 # Start a docker container and open a shell
@@ -29,4 +27,8 @@ echo "✅ No container with the name '$CONTAINER_NAME' is running."
 # it: Run the container in interactive mode.
 # privileged: Give the container full access to the host system.
 # name: Assign a name to the container.
-docker run --rm --privileged --name $CONTAINER_NAME $TAG
+if docker run --rm --privileged --name "$CONTAINER_NAME" "$TAG" then 
+    exit 1
+fi
+
+exit 0

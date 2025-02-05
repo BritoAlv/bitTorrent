@@ -1,4 +1,4 @@
-#!/bin/bash
+CONTAINERS_SCRIPT_PATH=./docker/containers/
 
 # Check if the correct number of arguments is provided
 if [ "$#" -ne 2 ]; then
@@ -7,27 +7,32 @@ if [ "$#" -ne 2 ]; then
 fi
 
 CONTAINER_NAME_OR_ID=$1
-# Check if the container exists
-if ! docker ps -a --format '{{.Names}}' | grep -wq "$1"; then
-    echo "❌ Container $1 does not exist."
+NETWORK_NAME=$2
+
+if sh ${CONTAINERS_SCRIPT_PATH}check_container.sh "$CONTAINER_NAME_OR_ID"; then
+    echo "❌ Container $CONTAINER_NAME_OR_ID does not exist."
     exit 1
-fi
+else
+    echo "✅ Container $CONTAINER_NAME_OR_ID exists."
+fi 
 
 # Check if the network exists
-if ! docker network ls --format '{{.Name}}' | grep -wq "$2"; then
-    echo "❌ Network $2 does not exist."
+if sh check_network.sh "$NETWORK_NAME"; then
+    echo "❌ Network $NETWORK_NAME does not exist."
     exit 1
+else
+    echo "✅ Network $NETWORK_NAME exists."
 fi
 
-CONTAINER_NAME_OR_ID=$1
-NETWORK_NAME=$2
 
 echo "🔍 Checking if the container is connected to the network..."
 
 # Disconnect the container from the network
 if docker network disconnect "$NETWORK_NAME" "$CONTAINER_NAME_OR_ID"; then
-    echo "✅ Successfully disconnected $CONTAINER_NAME_OR_ID from $NETWORK_NAME"
-else
     echo "❌ Failed to disconnect $CONTAINER_NAME_OR_ID from $NETWORK_NAME"
     exit 1
+else
+    echo "✅ Successfully disconnected $CONTAINER_NAME_OR_ID from $NETWORK_NAME"
 fi
+
+exit 0
