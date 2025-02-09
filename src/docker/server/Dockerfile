@@ -4,4 +4,4 @@ FROM alpine:latest
 WORKDIR /usr/src/bitTorrent
 
 COPY ./server/server ./
-CMD [ "./server" ]
+CMD [ "./server"]

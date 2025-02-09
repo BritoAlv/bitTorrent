@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-var tableOk = NewCustomHashTable[int, ExampleHashable]()
-var tableTest = NewCustomHashTable[int, ExampleHashable]()
+var tableOk = library.NewExampleHashTable[int, library.ExampleHashable]()
+var tableTest = library.NewExampleHashTable[int, library.ExampleHashable]()
 
 func ClearTable() {
 	tableTest.Clear()
@@ -17,13 +17,13 @@ func ClearTable() {
 func TestHashTablePut(t *testing.T) {
 	ClearTable()
 	for i := 0; i < 100; i++ {
-		key := *NewExampleHashable(rand.Int() % (1 << library.NumberBits))
+		key := *library.NewExampleHashable(rand.Int() % (1 << library.NumberBits))
 		value := rand.Int()
 		tableOk.Put(key, value)
 		tableTest.Put(key, value)
 	}
 	for i := 0; i < 100; i++ {
-		keyToFind := *NewExampleHashable(i)
+		keyToFind := *library.NewExampleHashable(i)
 		valueOk, existOk := tableOk.Get(keyToFind)
 		valueTest, existTest := tableTest.Get(keyToFind)
 		if existOk != existTest {
@@ -39,7 +39,7 @@ func TestHashTablePut(t *testing.T) {
 
 func TestHashTableFalseGet(t *testing.T) {
 	ClearTable()
-	key := *NewExampleHashable(2)
+	key := *library.NewExampleHashable(2)
 	_, exist := tableTest.Get(key)
 	if exist {
 		t.Errorf("Expected not to find the value")

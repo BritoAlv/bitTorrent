@@ -1,9 +1,9 @@
 package library
 
-import "math/rand"
+var fakeId = 0
 
 func GenerateRandomBinaryId() [NumberBits]uint8 {
-	var result [NumberBits]uint8
+	/*var result [NumberBits]uint8
 	for i := 0; i < NumberBits; i++ {
 		number := rand.Float32()
 		if number >= 0.5 {
@@ -12,7 +12,11 @@ func GenerateRandomBinaryId() [NumberBits]uint8 {
 			result[i] = 0
 		}
 	}
+	return result*/
+	result := IntToBinaryArray(fakeId)
+	fakeId++
 	return result
+
 }
 
 func IntToBinaryArray(number int) [NumberBits]uint8 {
