@@ -2,6 +2,7 @@ package messenger
 
 import (
 	"bittorrent/common"
+	"crypto/rsa"
 	"errors"
 	"io"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 )
 
 type stringifiedMessenger struct {
+	privateKey *rsa.PrivateKey
 }
 
 func New() Messenger {
@@ -17,8 +19,10 @@ func New() Messenger {
 
 //** Write implementation
 
-func (manager stringifiedMessenger) Write(writer io.Writer, message interface{}) error {
+// Pass public key as an argument here
+func (messenger stringifiedMessenger) Write(writer io.Writer, message interface{}) error {
 	var bytes []byte
+	var err error
 	switch castedMessage := message.(type) {
 	case HandshakeMessage:
 		bytes = encodeHandshakeMessage(castedMessage)
@@ -37,14 +41,17 @@ func (manager stringifiedMessenger) Write(writer io.Writer, message interface{})
 	case RequestMessage:
 		bytes = encodeRequestMessage(castedMessage)
 	case PieceMessage:
-		bytes = encodePieceMessage(castedMessage)
+		bytes, err = encodePieceMessage(castedMessage, &messenger.privateKey.PublicKey)
+		if err != nil {
+			return err
+		}
 	case CancelMessage:
 		bytes = encodeCancelMessage(castedMessage)
 	default:
 		return errors.New("invalid message type")
 	}
 
-	err := common.ReliableWrite(writer, bytes)
+	err = common.ReliableWrite(writer, bytes)
 	if err != nil {
 		return err
 	}
@@ -88,12 +95,18 @@ func encodeRequestMessage(message RequestMessage) []byte {
 	return append(getLength(messageBytes), messageBytes...)
 }
 
-func encodePieceMessage(message PieceMessage) []byte {
+func encodePieceMessage(message PieceMessage, publicKey *rsa.PublicKey) ([]byte, error) {
 	messageBytes := []byte(strconv.Itoa(_PIECE_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";" + strconv.Itoa(message.Offset) + ";")
 
-	messageBytes = append(messageBytes, message.Bytes...)
+	// Encrypt piece bytes
+	encryptedBytes, err := encrypt(message.Bytes, publicKey)
+	if err != nil {
+		return nil, err
+	}
 
-	return append(getLength(messageBytes), messageBytes...)
+	messageBytes = append(messageBytes, encryptedBytes...)
+
+	return append(getLength(messageBytes), messageBytes...), nil
 }
 
 func encodeCancelMessage(message CancelMessage) []byte {
@@ -109,7 +122,7 @@ func getLength(message []byte) []byte {
 
 //** Read implementation
 
-func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) {
+func (messenger stringifiedMessenger) Read(reader io.Reader) (interface{}, error) {
 	metaLengthBytes, err := common.ReliableRead(reader, 1)
 	if err != nil {
 		return nil, err
@@ -157,7 +170,7 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 	case _REQUEST_MESSAGE:
 		return decodeRequestMessage(messageStr)
 	case _PIECE_MESSAGE:
-		return decodePieceMessage(messageStr)
+		return decodePieceMessage(messageStr, messenger.privateKey)
 	case _CANCEL_MESSAGE:
 		return decodeCancelMessage(messageStr)
 	default:
@@ -255,7 +268,7 @@ func decodeRequestMessage(messageStr string) (RequestMessage, error) {
 	}, nil
 }
 
-func decodePieceMessage(messageStr string) (PieceMessage, error) {
+func decodePieceMessage(messageStr string, privateKey *rsa.PrivateKey) (PieceMessage, error) {
 	messageSplits := strings.SplitN(messageStr, ";", 4)
 	pieceSplits := messageSplits[1:]
 
@@ -273,12 +286,18 @@ func decodePieceMessage(messageStr string) (PieceMessage, error) {
 		return PieceMessage{}, errors.New("invalid piece-message payload")
 	}
 
-	bytes := []byte(pieceSplits[2])
+	encryptedBytes := []byte(pieceSplits[2])
+
+	// Decrypt bytes here using the public key argument
+	decryptedBytes, err := decrypt(encryptedBytes, privateKey)
+	if err != nil {
+		return PieceMessage{}, err
+	}
 
 	return PieceMessage{
 		Index:  index,
 		Offset: offset,
-		Bytes:  bytes,
+		Bytes:  decryptedBytes,
 	}, nil
 }
 
