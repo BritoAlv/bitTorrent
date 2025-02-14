@@ -5,6 +5,7 @@ import (
 	"bittorrent/client/tracker"
 	"bittorrent/common"
 	"bittorrent/fileManager"
+	"crypto/rsa"
 	"crypto/sha1"
 	"fmt"
 	"net"
@@ -30,7 +31,7 @@ func performDownload(notificationChannel chan interface{}, timeToWait int) {
 	notificationChannel <- downloadNotification{}
 }
 
-func performAddPeer(notificationChannel chan interface{}, sourceId string, targetId string, address common.Address, infohash [20]byte) {
+func performAddPeer(notificationChannel chan interface{}, sourceId string, targetId string, address common.Address, infohash [20]byte, sourcePrivateKey *rsa.PrivateKey) {
 	connection, err := net.Dial("tcp", address.Ip+":"+address.Port)
 
 	// Check if connection could not be established, if so then stop
@@ -40,12 +41,13 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 		return
 	}
 
-	go performReadFromPeer(notificationChannel, connection, true, sourceId, targetId, infohash)
+	go performReadFromPeer(notificationChannel, connection, true, sourceId, targetId, infohash, sourcePrivateKey)
 
-	_messenger := messenger.New()
+	_messenger := messenger.New(nil, nil)
 	err = _messenger.Write(connection, messenger.HandshakeMessage{
-		Infohash: infohash,
-		Id:       sourceId,
+		Infohash:  infohash,
+		Id:        sourceId,
+		PublicKey: &sourcePrivateKey.PublicKey,
 	})
 
 	// Check if handshaking could not be done, if so then stop
@@ -57,7 +59,7 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 	}
 }
 
-func performListen(notificationChannel chan interface{}, listener net.Listener, sourceId string, infohash [20]byte) {
+func performListen(notificationChannel chan interface{}, listener net.Listener, sourceId string, infohash [20]byte, sourcePrivateKey *rsa.PrivateKey) {
 	fmt.Println("LOG: start listening")
 	for {
 		connection, err := listener.Accept()
@@ -66,12 +68,12 @@ func performListen(notificationChannel chan interface{}, listener net.Listener, 
 			continue
 		}
 
-		go performReadFromPeer(notificationChannel, connection, false, sourceId, "", infohash)
+		go performReadFromPeer(notificationChannel, connection, false, sourceId, "", infohash, sourcePrivateKey)
 	}
 }
 
-func performReadFromPeer(notificationChannel chan interface{}, connection net.Conn, active bool, sourceId string, targetId string, infohash [20]byte) {
-	_messenger := messenger.New()
+func performReadFromPeer(notificationChannel chan interface{}, connection net.Conn, active bool, sourceId string, targetId string, infohash [20]byte, sourcePrivateKey *rsa.PrivateKey) {
+	_messenger := messenger.New(sourcePrivateKey, nil)
 	wasHandshakeMade := false
 
 	// TODO: Time out connections
@@ -95,8 +97,9 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 				if !active {
 					targetId = castedMessage.Id
 					err := _messenger.Write(connection, messenger.HandshakeMessage{
-						Infohash: infohash,
-						Id:       sourceId,
+						Infohash:  infohash,
+						Id:        sourceId,
+						PublicKey: &sourcePrivateKey.PublicKey,
 					})
 					if err != nil {
 						fmt.Println("ERROR: an error occurred while reading from neighbor: " + err.Error())
@@ -111,6 +114,7 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 				notificationChannel <- addPeerNotification{
 					PeerId:     targetId,
 					Connection: connection,
+					PublicKey:  castedMessage.PublicKey,
 				}
 
 				// Send bitfields after handshake correctly performed
@@ -182,7 +186,7 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 }
 
 func performSendRequestToPeer(notificationChannel chan interface{}, connection net.Conn, peerId string, index int, offset int, length int) {
-	_messenger := messenger.New()
+	_messenger := messenger.New(nil, nil)
 
 	err := _messenger.Write(connection, messenger.RequestMessage{
 		Index:  index,
@@ -200,7 +204,7 @@ func performSendRequestToPeer(notificationChannel chan interface{}, connection n
 }
 
 func performSendBitfieldToPeer(notificationChannel chan interface{}, connection net.Conn, peerId string, bitfield []bool) {
-	_messenger := messenger.New()
+	_messenger := messenger.New(nil, nil)
 
 	err := _messenger.Write(connection, messenger.BitfieldMessage{Bitfield: bitfield})
 
@@ -213,8 +217,8 @@ func performSendBitfieldToPeer(notificationChannel chan interface{}, connection 
 	fmt.Printf("LOG: send a bitfield-message to neighbor: %v\n", peerId)
 }
 
-func performSendPieceToPeer(notificationChannel chan interface{}, connection net.Conn, _fileManager fileManager.FileManager, peerId string, index int, offset int, length int, absoluteOffset int) {
-	_messenger := messenger.New()
+func performSendPieceToPeer(notificationChannel chan interface{}, connection net.Conn, _fileManager fileManager.FileManager, peerId string, index int, offset int, length int, absoluteOffset int, targetPublicKey *rsa.PublicKey) {
+	_messenger := messenger.New(nil, targetPublicKey)
 
 	bytes, err := _fileManager.Read(absoluteOffset, length)
 	if err != nil {
@@ -229,14 +233,14 @@ func performSendPieceToPeer(notificationChannel chan interface{}, connection net
 	})
 
 	if err != nil {
-		fmt.Println("ERROR: an error occurred while sending a request-message to neighbor: " + peerId)
+		fmt.Println("ERROR: an error occurred while sending a piece-message to neighbor: " + peerId)
 		notificationChannel <- removePeerNotification{PeerId: peerId}
 		return
 	}
 }
 
 func performSendHaveToPeer(notificationChannel chan interface{}, connection net.Conn, peerId string, index int) {
-	_messenger := messenger.New()
+	_messenger := messenger.New(nil, nil)
 
 	err := _messenger.Write(connection, messenger.HaveMessage{Index: index})
 

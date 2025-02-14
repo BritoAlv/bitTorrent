@@ -6,6 +6,9 @@ import (
 	"bittorrent/common"
 	"bittorrent/fileManager"
 	"bittorrent/torrent"
+	"crypto/rand"
+	"crypto/rsa"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -23,6 +26,7 @@ type Peer struct {
 	torrentData         torrent.Torrent           // Torrent associated data
 	peers               map[string]PeerInfo       // Neighbor peers. It's a <PeerId, PeerInfo> dictionary
 	tempPeers           map[string]common.Address // Peers being currently processed, might or not be official neighbors. This property can be refactor in the future
+	privateKey          *rsa.PrivateKey
 
 	// Interfaces
 	tracker      tracker.Tracker
@@ -80,6 +84,11 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 		return Peer{}, err
 	}
 
+	peer.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return Peer{}, errors.New("error generating private key")
+	}
+
 	return peer, nil
 }
 
@@ -99,7 +108,7 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		// Event:    "started",
 	}
 
-	go performListen(peer.notificationChannel, peer.listener, peer.Id, peer.torrentData.InfoHash)
+	go performListen(peer.notificationChannel, peer.listener, peer.Id, peer.torrentData.InfoHash, peer.privateKey)
 	go performTrack(peer.notificationChannel, peer.tracker, trackerRequest, 0)
 	if !peer.downloaded {
 		go performDownload(peer.notificationChannel, 2)
@@ -155,7 +164,7 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 	if !peer.downloaded && len(peer.peers) < PEERS_LOWER_BOUND {
 		for id, address := range notification.Response.Peers {
 			if peer.isValidNeighbor(id, address) {
-				go performAddPeer(peer.notificationChannel, peer.Id, id, address, peer.torrentData.InfoHash)
+				go performAddPeer(peer.notificationChannel, peer.Id, id, address, peer.torrentData.InfoHash, peer.privateKey)
 			}
 		}
 	}
@@ -218,6 +227,7 @@ func (peer *Peer) handleAddPeerNotification(notification addPeerNotification) {
 		Bitfield:   make([]bool, len(peer.pieceManager.Bitfield())),
 		IsChoker:   false,
 		IsChoked:   false,
+		PublicKey:  notification.PublicKey,
 	}
 }
 
@@ -262,7 +272,7 @@ func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotifica
 	}
 
 	start := peer.getAbsoluteOffset(notification.Index, notification.Offset)
-	go performSendPieceToPeer(peer.notificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start)
+	go performSendPieceToPeer(peer.notificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start, peer.peers[notification.PeerId].PublicKey)
 }
 
 func (peer *Peer) handlePeerBitfieldNotification(notification peerBitfieldNotification) {

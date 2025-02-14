@@ -1,8 +1,11 @@
 package messenger
 
+import "crypto/rsa"
+
 type HandshakeMessage struct {
-	Infohash [20]byte
-	Id       string
+	Infohash  [20]byte
+	Id        string
+	PublicKey *rsa.PublicKey
 }
 
 type ChokeMessage struct{}

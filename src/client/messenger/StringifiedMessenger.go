@@ -4,17 +4,23 @@ import (
 	"bittorrent/common"
 	"crypto/rsa"
 	"errors"
+	"fmt"
 	"io"
+	"math/big"
 	"strconv"
 	"strings"
 )
 
 type stringifiedMessenger struct {
-	privateKey *rsa.PrivateKey
+	innerKey    *rsa.PrivateKey
+	externalKey *rsa.PublicKey
 }
 
-func New() Messenger {
-	return stringifiedMessenger{}
+func New(innerKey *rsa.PrivateKey, externalKey *rsa.PublicKey) Messenger {
+	return stringifiedMessenger{
+		innerKey:    innerKey,
+		externalKey: externalKey,
+	}
 }
 
 //** Write implementation
@@ -41,7 +47,7 @@ func (messenger stringifiedMessenger) Write(writer io.Writer, message interface{
 	case RequestMessage:
 		bytes = encodeRequestMessage(castedMessage)
 	case PieceMessage:
-		bytes, err = encodePieceMessage(castedMessage, &messenger.privateKey.PublicKey)
+		bytes, err = encodePieceMessage(castedMessage, messenger.externalKey)
 		if err != nil {
 			return err
 		}
@@ -59,8 +65,14 @@ func (messenger stringifiedMessenger) Write(writer io.Writer, message interface{
 }
 
 func encodeHandshakeMessage(message HandshakeMessage) []byte {
+	modulusStr := ";" + message.PublicKey.N.String()
+	exponentStr := ";" + strconv.Itoa(message.PublicKey.E)
+
 	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + ";")
 	messageBytes = append(messageBytes, message.Infohash[:]...)
+	messageBytes = append(messageBytes, []byte(modulusStr)...)
+	messageBytes = append(messageBytes, []byte(exponentStr)...)
+
 	return append(getLength(messageBytes), messageBytes...)
 }
 
@@ -170,7 +182,7 @@ func (messenger stringifiedMessenger) Read(reader io.Reader) (interface{}, error
 	case _REQUEST_MESSAGE:
 		return decodeRequestMessage(messageStr)
 	case _PIECE_MESSAGE:
-		return decodePieceMessage(messageStr, messenger.privateKey)
+		return decodePieceMessage(messageStr, messenger.innerKey)
 	case _CANCEL_MESSAGE:
 		return decodeCancelMessage(messageStr)
 	default:
@@ -179,10 +191,10 @@ func (messenger stringifiedMessenger) Read(reader io.Reader) (interface{}, error
 }
 
 func decodeHandshakeMessage(messageStr string) (HandshakeMessage, error) {
-	messageSplits := strings.SplitN(messageStr, ";", 3)
+	messageSplits := strings.SplitN(messageStr, ";", 5)
 	handshakeSplits := messageSplits[1:]
 
-	if len(handshakeSplits) != 2 {
+	if len(handshakeSplits) != 4 {
 		return HandshakeMessage{}, errors.New("invalid handshake-message payload")
 	}
 
@@ -194,9 +206,28 @@ func decodeHandshakeMessage(messageStr string) (HandshakeMessage, error) {
 	}
 	infohash := [20]byte(infohashSlice)
 
+	modulusStr := handshakeSplits[2]
+	exponentStr := handshakeSplits[3]
+
+	modulus, successful := big.NewInt(0).SetString(modulusStr, 10)
+	if !successful {
+		fmt.Println("Error parsing the public key string")
+	}
+
+	exponent, err := strconv.Atoi(exponentStr)
+	if err != nil {
+		fmt.Println("Error parsing the public key string")
+	}
+
+	publicKey := &rsa.PublicKey{
+		N: modulus,
+		E: exponent,
+	}
+
 	return HandshakeMessage{
-		Infohash: infohash,
-		Id:       id,
+		Infohash:  infohash,
+		Id:        id,
+		PublicKey: publicKey,
 	}, nil
 }
 

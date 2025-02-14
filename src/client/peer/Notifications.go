@@ -2,6 +2,7 @@ package peer
 
 import (
 	"bittorrent/common"
+	"crypto/rsa"
 	"net"
 )
 
@@ -27,6 +28,7 @@ type pieceVerificationNotification struct {
 type addPeerNotification struct {
 	PeerId     string
 	Connection net.Conn
+	PublicKey  *rsa.PublicKey
 }
 
 type removePeerNotification struct {

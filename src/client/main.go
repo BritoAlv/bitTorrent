@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) != 4 {
-		fmt.Println("ERROR: expecting 2 arguments: torrent file, download directory and ip")
+		fmt.Println("ERROR: expecting 3 arguments: torrent file, download directory and ip")
 		os.Exit(1)
 		return
 	}
