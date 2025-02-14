@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -27,6 +28,7 @@ type Peer struct {
 	peers               map[string]PeerInfo       // Neighbor peers. It's a <PeerId, PeerInfo> dictionary
 	tempPeers           map[string]common.Address // Peers being currently processed, might or not be official neighbors. This property can be refactor in the future
 	privateKey          *rsa.PrivateKey
+	requestedChunks     map[[3]string]int
 
 	// Interfaces
 	tracker      tracker.Tracker
@@ -48,6 +50,7 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 	peer.notificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
 	peer.tempPeers = make(map[string]common.Address)
+	peer.requestedChunks = make(map[[3]string]int)
 
 	peer.tracker = tracker.CentralizedHttpTracker{Url: torrent.Announce}
 
@@ -203,15 +206,31 @@ func (peer *Peer) handleDownloadNotification() {
 
 	for _, chunk := range uncheckedChunks {
 		for peerId, peerInfo := range peer.peers {
-			if peerInfo.Bitfield[chunk[INDEX]] {
+			indexStr := strconv.Itoa(chunk[INDEX])
+			offsetStr := strconv.Itoa(chunk[OFFSET])
+			requestChunkId := [3]string{peerId, indexStr, offsetStr}
+
+			requestedCount, previouslyRequested := peer.requestedChunks[requestChunkId]
+
+			if requestedCount == 0 && previouslyRequested {
+				fmt.Print()
+			}
+
+			if peerInfo.Bitfield[chunk[INDEX]] && (!previouslyRequested || requestedCount == 0) {
+				peer.requestedChunks[requestChunkId] = 20
+
 				go performSendRequestToPeer(peer.notificationChannel, peerInfo.Connection, peerId, chunk[INDEX], chunk[OFFSET], chunk[LENGTH])
 				break
+			}
+
+			if previouslyRequested {
+				peer.requestedChunks[requestChunkId]--
 			}
 		}
 	}
 
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 5)
+		go performDownload(peer.notificationChannel, 10)
 	}
 }
 
@@ -245,6 +264,11 @@ func (peer *Peer) handleRemovePeerNotification(notification removePeerNotificati
 	}
 
 	delete(peer.peers, notification.PeerId)
+	for key := range peer.requestedChunks {
+		if key[0] == notification.PeerId {
+			delete(peer.requestedChunks, key)
+		}
+	}
 	fmt.Println("LOG: remove neighbor: " + notification.PeerId)
 }
 
