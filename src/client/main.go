@@ -35,7 +35,7 @@ func main() {
 		return
 	}
 
-	peer, err := peer.New(peerId, listener, torrent, downloadDirectory)
+	peer, err := peer.New(peerId, listener, torrent, downloadDirectory, false)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

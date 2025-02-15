@@ -39,7 +39,7 @@ type Peer struct {
 	getAbsoluteOffset func(int, int) int // Function that calculates the absolute offset from index and relative-offset
 }
 
-func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDirectory string) (Peer, error) {
+func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDirectory string, encrypted bool) (Peer, error) {
 	splitAddress := strings.Split(listener.Addr().String(), ":")
 
 	peer := Peer{}
@@ -87,9 +87,12 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 		return Peer{}, err
 	}
 
-	peer.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return Peer{}, errors.New("error generating private key")
+	peer.privateKey = nil
+	if encrypted {
+		peer.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return Peer{}, errors.New("error generating private key")
+		}
 	}
 
 	return peer, nil
@@ -230,7 +233,7 @@ func (peer *Peer) handleDownloadNotification() {
 	}
 
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 10)
+		go performDownload(peer.notificationChannel, 5)
 	}
 }
 

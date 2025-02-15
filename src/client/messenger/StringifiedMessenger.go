@@ -65,8 +65,12 @@ func (messenger stringifiedMessenger) Write(writer io.Writer, message interface{
 }
 
 func encodeHandshakeMessage(message HandshakeMessage) []byte {
-	modulusStr := ";" + message.PublicKey.N.String()
-	exponentStr := ";" + strconv.Itoa(message.PublicKey.E)
+	modulusStr := ";"
+	exponentStr := ";"
+	if message.PublicKey != nil {
+		modulusStr = ";" + message.PublicKey.N.String()
+		exponentStr = ";" + strconv.Itoa(message.PublicKey.E)
+	}
 
 	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + ";")
 	messageBytes = append(messageBytes, message.Infohash[:]...)
@@ -110,10 +114,14 @@ func encodeRequestMessage(message RequestMessage) []byte {
 func encodePieceMessage(message PieceMessage, publicKey *rsa.PublicKey) ([]byte, error) {
 	messageBytes := []byte(strconv.Itoa(_PIECE_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";" + strconv.Itoa(message.Offset) + ";")
 
-	// Encrypt piece bytes
-	encryptedBytes, err := encrypt(message.Bytes, publicKey)
-	if err != nil {
-		return nil, err
+	var err error
+	encryptedBytes := message.Bytes
+	if publicKey != nil {
+		// Encrypt piece bytes
+		encryptedBytes, err = encrypt(message.Bytes, publicKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	messageBytes = append(messageBytes, encryptedBytes...)
@@ -209,19 +217,22 @@ func decodeHandshakeMessage(messageStr string) (HandshakeMessage, error) {
 	modulusStr := handshakeSplits[2]
 	exponentStr := handshakeSplits[3]
 
-	modulus, successful := big.NewInt(0).SetString(modulusStr, 10)
-	if !successful {
-		fmt.Println("Error parsing the public key string")
-	}
+	var publicKey *rsa.PublicKey
+	if modulusStr != "" && exponentStr != "" {
+		modulus, successful := big.NewInt(0).SetString(modulusStr, 10)
+		if !successful {
+			fmt.Println("Error parsing the public key string")
+		}
 
-	exponent, err := strconv.Atoi(exponentStr)
-	if err != nil {
-		fmt.Println("Error parsing the public key string")
-	}
+		exponent, err := strconv.Atoi(exponentStr)
+		if err != nil {
+			fmt.Println("Error parsing the public key string")
+		}
 
-	publicKey := &rsa.PublicKey{
-		N: modulus,
-		E: exponent,
+		publicKey = &rsa.PublicKey{
+			N: modulus,
+			E: exponent,
+		}
 	}
 
 	return HandshakeMessage{
@@ -318,11 +329,13 @@ func decodePieceMessage(messageStr string, privateKey *rsa.PrivateKey) (PieceMes
 	}
 
 	encryptedBytes := []byte(pieceSplits[2])
-
-	// Decrypt bytes here using the public key argument
-	decryptedBytes, err := decrypt(encryptedBytes, privateKey)
-	if err != nil {
-		return PieceMessage{}, err
+	decryptedBytes := encryptedBytes
+	if privateKey != nil {
+		// Decrypt bytes here using the public key argument
+		decryptedBytes, err = decrypt(encryptedBytes, privateKey)
+		if err != nil {
+			return PieceMessage{}, err
+		}
 	}
 
 	return PieceMessage{

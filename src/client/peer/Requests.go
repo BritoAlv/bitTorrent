@@ -43,11 +43,15 @@ func performAddPeer(notificationChannel chan interface{}, sourceId string, targe
 
 	go performReadFromPeer(notificationChannel, connection, true, sourceId, targetId, infohash, sourcePrivateKey)
 
+	var publicKey *rsa.PublicKey
+	if sourcePrivateKey != nil {
+		publicKey = &sourcePrivateKey.PublicKey
+	}
 	_messenger := messenger.New(nil, nil)
 	err = _messenger.Write(connection, messenger.HandshakeMessage{
 		Infohash:  infohash,
 		Id:        sourceId,
-		PublicKey: &sourcePrivateKey.PublicKey,
+		PublicKey: publicKey,
 	})
 
 	// Check if handshaking could not be done, if so then stop
@@ -88,6 +92,8 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 		switch castedMessage := message.(type) {
 		case messenger.HandshakeMessage:
 			if !wasHandshakeMade {
+				_messenger := messenger.New(sourcePrivateKey, castedMessage.PublicKey)
+
 				if active && (targetId != castedMessage.Id || infohash != castedMessage.Infohash) {
 					fmt.Println("ERROR: not expected id or infohash")
 					notificationChannel <- removePeerNotification{PeerId: targetId}
@@ -96,10 +102,16 @@ func performReadFromPeer(notificationChannel chan interface{}, connection net.Co
 
 				if !active {
 					targetId = castedMessage.Id
+
+					var publicKey *rsa.PublicKey
+					if sourcePrivateKey != nil {
+						publicKey = &sourcePrivateKey.PublicKey
+					}
+
 					err := _messenger.Write(connection, messenger.HandshakeMessage{
 						Infohash:  infohash,
 						Id:        sourceId,
-						PublicKey: &sourcePrivateKey.PublicKey,
+						PublicKey: publicKey,
 					})
 					if err != nil {
 						fmt.Println("ERROR: an error occurred while reading from neighbor: " + err.Error())
