@@ -1,3 +1,4 @@
 package library
 
-const NumberBits = 5
+const NumberBits = 8
+const WaitingTime = 3
