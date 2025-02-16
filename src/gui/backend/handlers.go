@@ -19,7 +19,7 @@ func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, re
 	if err != nil {
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
-			ErrorMessage: "Internal server error " + err.Error(),
+			ErrorMessage: err.Error(),
 		})
 		return
 	}
@@ -29,7 +29,7 @@ func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, re
 	if err != nil {
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
-			ErrorMessage: "Internal server error " + err.Error(),
+			ErrorMessage: err.Error(),
 		})
 		return
 	}
@@ -38,7 +38,7 @@ func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, re
 	if err != nil {
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
-			ErrorMessage: "Internal server error " + err.Error(),
+			ErrorMessage: err.Error(),
 		})
 		return
 	}
@@ -114,7 +114,7 @@ func respond(responseWriter io.Writer, response interface{}) {
 	if err != nil {
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
-			ErrorMessage: "Internal server error" + err.Error(),
+			ErrorMessage: err.Error(),
 		})
 		return
 	}
@@ -123,7 +123,7 @@ func respond(responseWriter io.Writer, response interface{}) {
 	if err != nil {
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
-			ErrorMessage: "Internal server error" + err.Error(),
+			ErrorMessage: err.Error(),
 		})
 		return
 	}
