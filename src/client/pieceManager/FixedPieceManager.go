@@ -28,7 +28,7 @@ func New(length int, pieceLength int, chunkLength int) PieceManager {
 
 	totalPieces := common.GetTotalPieces(length, pieceLength)
 	for i := range totalPieces {
-		// Handle last piece bytes since they might be truncated
+		// HandleNotification last piece bytes since they might be truncated
 		if i == totalPieces-1 && length%pieceLength != 0 {
 			lastPieceBytes := length % pieceLength
 

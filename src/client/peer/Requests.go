@@ -16,7 +16,7 @@ func performTrack(notificationChannel chan interface{}, tracker tracker.Tracker,
 	time.Sleep(time.Second * time.Duration(timeToWait)) // Wait for the specified time
 	response, err := tracker.Track(request)
 
-	// Handle tracker's error
+	// HandleNotification tracker's error
 	if err != nil {
 		fmt.Println(err.Error())
 		notificationChannel <- trackNotification{Successful: false}
