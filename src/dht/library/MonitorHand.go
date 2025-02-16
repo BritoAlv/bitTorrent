@@ -11,10 +11,10 @@ type MonitorHand[T Contact] struct {
 	lastDateKnown map[[NumberBits]uint8]time.Time
 }
 
-func NewMonitorHand[T Contact]() *MonitorHand[T] {
+func NewMonitorHand[T Contact](name string) *MonitorHand[T] {
 	return &MonitorHand[T]{
 		lastDateKnown: make(map[[8]uint8]time.Time),
-		logger:        *common.NewLogger("MonitorHand.txt"),
+		logger:        *common.NewLogger(name + ".txt"),
 	}
 }
 

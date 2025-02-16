@@ -43,10 +43,20 @@ type AreYouMyPredecessor[contact Contact] struct {
 func (a AreYouMyPredecessor[contact]) HandleNotification(b *BruteChord[contact]) {
 	// update my settings only if needed.
 	b.Logger.WriteToFileOK(fmt.Sprintf("Handling AreYouMyPredecessor from %v", a.Contact.getNodeId()))
-	b.Logger.WriteToFileOK(fmt.Sprintf("My ID is %v, Query comes from Node with ID %v, and my successor ID is %v", b.GetContact().getNodeId(), a.Contact.getNodeId(), b.GetSuccessor().getNodeId()))
-	if Between(b.Id, a.Contact.getNodeId(), b.GetSuccessor().getNodeId()) || b.Id == b.GetSuccessor().getNodeId() {
+	b.Logger.WriteToFileOK(fmt.Sprintf("My ID is %v = %v, Query comes from Node with ID %v = %v, and my successor ID is %v = %v", b.GetContact().getNodeId(), BinaryArrayToInt(b.GetContact().getNodeId()), a.Contact.getNodeId(), BinaryArrayToInt(a.Contact.getNodeId()), b.GetSuccessor().getNodeId(), BinaryArrayToInt(b.GetSuccessor().getNodeId())))
+	if a.Contact.getNodeId() == b.Id {
+		b.Logger.WriteToFileOK(fmt.Sprintf("Ignoring the request because I am the sender"))
+		return
+	}
+	// If the Node asking is between me and my successor, then I am the predecessor of that Node.
+	if Between(b.Id, a.Contact.getNodeId(), b.GetSuccessor().getNodeId()) {
 		b.Logger.WriteToFileOK(fmt.Sprintf("I am the predecessor of %v", a.Contact.getNodeId()))
-		b.SetSuccessor(a.Contact)
+		if b.GetSuccessor().getNodeId() == a.Contact.getNodeId() {
+			b.Logger.WriteToFileOK(fmt.Sprintf("I am already its predecessor of %v", a.Contact.getNodeId()))
+			return
+		} else {
+			b.SetSuccessor(a.Contact)
+		}
 	} else {
 		b.Logger.WriteToFileOK(fmt.Sprintf("I am not the predecessor of %v", a.Contact.getNodeId()))
 	}

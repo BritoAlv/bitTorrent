@@ -13,12 +13,12 @@ type ServerInMemory struct {
 	Logger               common.Logger
 }
 
-func NewServerInMemory(database *DataBaseInMemory, serverId string) *ServerInMemory {
+func NewServerInMemory(database *DataBaseInMemory, name string) *ServerInMemory {
 	return &ServerInMemory{
 		DataBase:             database,
-		ServerId:             serverId,
+		ServerId:             name,
 		ChannelCommunication: nil,
-		Logger:               *common.NewLogger("Server" + serverId + ".txt"),
+		Logger:               *common.NewLogger(name + ".txt"),
 	}
 }
 

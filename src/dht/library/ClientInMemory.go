@@ -12,10 +12,10 @@ type ClientInMemory struct {
 	Logger   common.Logger
 }
 
-func NewClientInMemory(database *DataBaseInMemory) *ClientInMemory {
+func NewClientInMemory(database *DataBaseInMemory, name string) *ClientInMemory {
 	return &ClientInMemory{
 		DataBase: database,
-		Logger:   *common.NewLogger("Client.txt"),
+		Logger:   *common.NewLogger(name + ".txt"),
 	}
 }
 

@@ -39,3 +39,77 @@ func TestIntToBinaryArray(t *testing.T) {
 		})
 	}
 }
+
+func TestBetween(t *testing.T) {
+	type args struct {
+		L [NumberBits]uint8
+		M [NumberBits]uint8
+		R [NumberBits]uint8
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		// TODO: Add test cases .
+		{
+			name: "Test 1",
+			args: args{
+				L: IntToBinaryArray(252),
+				M: IntToBinaryArray(92),
+				R: IntToBinaryArray(242),
+			},
+			want: true,
+		},
+		{
+			name: "Test 2",
+			args: args{
+				L: IntToBinaryArray(10),
+				M: IntToBinaryArray(20),
+				R: IntToBinaryArray(15),
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Between(tt.args.L, tt.args.M, tt.args.R); got != tt.want {
+				t.Errorf("Between() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBinaryArrayToInt(t *testing.T) {
+	type args struct {
+		array [NumberBits]uint8
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{
+			name: "Test 1",
+			args: args{array: [NumberBits]uint8{0, 0, 0, 0, 0, 0, 0, 0}},
+			want: 0,
+		},
+		{
+			name: "Test 2",
+			args: args{array: [NumberBits]uint8{1, 0, 0, 0, 0, 0, 0, 0}},
+			want: 1,
+		},
+		{
+			name: "Test 3",
+			args: args{array: [NumberBits]uint8{1, 1, 1, 1, 1, 1, 1, 1}},
+			want: 255,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := BinaryArrayToInt(tt.args.array); got != tt.want {
+				t.Errorf("BinaryArrayToInt() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

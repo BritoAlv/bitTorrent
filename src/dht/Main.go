@@ -2,15 +2,25 @@ package main
 
 import (
 	"bittorrent/dht/library"
+	"strconv"
+	"sync"
 )
 
 func main() {
 	var database = *library.NewDataBaseInMemory()
-	var server1 = library.NewServerInMemory(&database, "BritoServer")
-
-	var client1 = library.NewClientInMemory(&database)
-	database.AddServer(server1)
-
-	node1 := library.NewBruteChord[library.InMemoryContact](server1, client1, library.NewMonitorHand[library.InMemoryContact]())
-	node1.BeginWorking()
+	var barrier = sync.WaitGroup{}
+	N := 24
+	for i := 0; i < N; i++ {
+		iString := strconv.Itoa(i)
+		var server = library.NewServerInMemory(&database, "Server"+iString)
+		var client = library.NewClientInMemory(&database, "Client"+iString)
+		database.AddServer(server)
+		node := library.NewBruteChord[library.InMemoryContact](server, client, library.NewMonitorHand[library.InMemoryContact]("Monitor"+iString))
+		go func() {
+			barrier.Add(1)
+			node.BeginWorking()
+			barrier.Done()
+		}()
+	}
+	barrier.Wait()
 }
