@@ -4,6 +4,14 @@ import "math/rand"
 
 var usedId = map[[NumberBits]uint8]bool{}
 
+func ConvertStr(value [NumberBits]uint8) string {
+	var result string
+	for i := 0; i < NumberBits; i++ {
+		result += string(value[i] + '0')
+	}
+	return result
+}
+
 func EqualBytesArray(A []byte, B []byte) bool {
 	if len(A) != len(B) {
 		return false
