@@ -65,7 +65,8 @@ func (c *BruteChord[T]) cpu() {
 		select {
 		case notification := <-c.NotificationChannelServerNode:
 			c.Logger.WriteToFileOK(fmt.Sprintf("Received Notification %v", reflect.TypeOf(notification)))
-			notification.HandleNotification(c)
+			// if this is called without go this stops working, but I don't know why, or how simulate the bug.
+			go notification.HandleNotification(c)
 		case <-ticker.C:
 			c.Logger.WriteToFileOK(fmt.Sprintf("Cur time is %v, thus start doing Additional Things", time.Now()))
 			go c.sendCheckPredecessor() // Stabilize Predecessor.
