@@ -8,6 +8,21 @@
     <script type="module" src="./static/scripts/main.js"></script>
 </head>
 <body>
-    <h1>Torrente</h1>
+    <h1 id="main-header">Torrente</h1>
+    <img src="./static/torrente.jpg" alt="torrente" id="main-image">
+    
+    <label for="torrent-file" id="torrent-file-label">+</label>
+    <input type="file" id="torrent-file" accept=".torrent" hidden>
+    
+    <ul id="status-list">
+        <li>
+            <label class="status-name">Name</label>
+            <progress class="status-progress-bar" value="40" max="100"></progress>
+            <label class="status-download">Download</label>
+            <label class="status-stop">Stop</label>
+            <label class="status-remove">X</label>
+        </li>
+        
+    </ul>
 </body>
 </html>
