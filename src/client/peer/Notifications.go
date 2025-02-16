@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-type killNotification struct{}
+type KillNotification struct{}
 
 type trackNotification struct {
 	Response   common.TrackResponse

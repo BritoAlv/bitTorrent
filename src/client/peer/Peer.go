@@ -21,7 +21,7 @@ type Peer struct {
 	Id string
 
 	//** Private properties
-	notificationChannel chan interface{}
+	NotificationChannel chan interface{}
 	address             common.Address            // Peer's address
 	listener            net.Listener              // Peer's listener
 	torrentData         torrent.Torrent           // Torrent associated data
@@ -47,7 +47,7 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 	peer.address = common.Address{Ip: splitAddress[0], Port: splitAddress[1]}
 	peer.listener = listener
 	peer.torrentData = torrent
-	peer.notificationChannel = make(chan interface{}, 1000)
+	peer.NotificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
 	peer.tempPeers = make(map[string]common.Address)
 	peer.requestedChunks = make(map[[3]string]int)
@@ -114,10 +114,10 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		// Event:    "started",
 	}
 
-	go performListen(peer.notificationChannel, peer.listener, peer.Id, peer.torrentData.InfoHash, peer.privateKey)
-	go performTrack(peer.notificationChannel, peer.tracker, trackerRequest, 0)
+	go performListen(peer.NotificationChannel, peer.listener, peer.Id, peer.torrentData.InfoHash, peer.privateKey)
+	go performTrack(peer.NotificationChannel, peer.tracker, trackerRequest, 0)
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 2)
+		go performDownload(peer.NotificationChannel, 2)
 	}
 
 	waitGroup := sync.WaitGroup{}
@@ -125,9 +125,10 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 	go func() {
 		defer waitGroup.Done()
 
-		for message := range peer.notificationChannel {
+		for message := range peer.NotificationChannel {
 			switch notification := message.(type) {
-			case killNotification:
+			case KillNotification:
+				fmt.Println("LOG: Killed")
 				return
 			case trackNotification:
 				peer.handleTrackResponseNotification(notification)
@@ -182,14 +183,14 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 	if !peer.downloaded && len(peer.peers) < PEERS_LOWER_BOUND {
 		for id, address := range notification.Response.Peers {
 			if peer.isValidNeighbor(id, address) {
-				go performAddPeer(peer.notificationChannel, peer.Id, id, address, peer.torrentData.InfoHash, peer.privateKey)
+				go performAddPeer(peer.NotificationChannel, peer.Id, id, address, peer.torrentData.InfoHash, peer.privateKey)
 			}
 		}
 	}
 
 	left := peer.bytesLeft()
 
-	go performTrack(peer.notificationChannel, peer.tracker, common.TrackRequest{
+	go performTrack(peer.NotificationChannel, peer.tracker, common.TrackRequest{
 		InfoHash: peer.torrentData.InfoHash,
 		PeerId:   peer.Id,
 		Ip:       peer.address.Ip,
@@ -234,7 +235,7 @@ func (peer *Peer) handleDownloadNotification() {
 			if peerInfo.Bitfield[chunk[INDEX]] && (!previouslyRequested || requestedCount == 0) {
 				peer.requestedChunks[requestChunkId] = 20
 
-				go performSendRequestToPeer(peer.notificationChannel, peerInfo.Connection, peerId, chunk[INDEX], chunk[OFFSET], chunk[LENGTH])
+				go performSendRequestToPeer(peer.NotificationChannel, peerInfo.Connection, peerId, chunk[INDEX], chunk[OFFSET], chunk[LENGTH])
 				break
 			}
 
@@ -245,7 +246,7 @@ func (peer *Peer) handleDownloadNotification() {
 	}
 
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 5)
+		go performDownload(peer.NotificationChannel, 5)
 	}
 }
 
@@ -294,7 +295,7 @@ func (peer *Peer) handleSendBitfieldNotification(notification sendBitfieldNotifi
 		return
 	}
 
-	performSendBitfieldToPeer(peer.notificationChannel, info.Connection, notification.PeerId, peer.pieceManager.Bitfield())
+	performSendBitfieldToPeer(peer.NotificationChannel, info.Connection, notification.PeerId, peer.pieceManager.Bitfield())
 }
 
 func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotification) {
@@ -311,7 +312,7 @@ func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotifica
 	}
 
 	start := peer.getAbsoluteOffset(notification.Index, notification.Offset)
-	go performSendPieceToPeer(peer.notificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start, peer.peers[notification.PeerId].PublicKey)
+	go performSendPieceToPeer(peer.NotificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start, peer.peers[notification.PeerId].PublicKey)
 }
 
 func (peer *Peer) handlePeerBitfieldNotification(notification peerBitfieldNotification) {
@@ -338,7 +339,7 @@ func (peer *Peer) handlePeerPieceNotification(notification peerPieceNotification
 	}
 
 	absoluteOffset := peer.getAbsoluteOffset(notification.Index, notification.Offset)
-	go performWrite(peer.notificationChannel, peer.fileManager, notification.Index, notification.Offset, absoluteOffset, notification.Bytes)
+	go performWrite(peer.NotificationChannel, peer.fileManager, notification.Index, notification.Offset, absoluteOffset, notification.Bytes)
 
 	fmt.Println("LOG: a piece-message was received from: " + notification.PeerId)
 }
@@ -350,7 +351,7 @@ func (peer *Peer) handleWriteNotification(notification writeNotification) {
 	if checkedPiece {
 		pieceAbsoluteOffset := notification.Index * int(peer.torrentData.PieceLength)
 
-		go performVerifyPiece(peer.notificationChannel, peer.fileManager, notification.Index, pieceAbsoluteOffset, int(peer.torrentData.PieceLength), peer.torrentData.Pieces)
+		go performVerifyPiece(peer.NotificationChannel, peer.fileManager, notification.Index, pieceAbsoluteOffset, int(peer.torrentData.PieceLength), peer.torrentData.Pieces)
 	}
 }
 
@@ -360,7 +361,7 @@ func (peer *Peer) handlePieceVerifiedNotification(notification pieceVerification
 
 		// Send have-message to all neighbor peers
 		for peerId, peerInfo := range peer.peers {
-			go performSendHaveToPeer(peer.notificationChannel, peerInfo.Connection, peerId, notification.Index)
+			go performSendHaveToPeer(peer.NotificationChannel, peerInfo.Connection, peerId, notification.Index)
 		}
 	} else {
 		fmt.Printf("LOG: piece %v was corrupted\n", notification.Index)

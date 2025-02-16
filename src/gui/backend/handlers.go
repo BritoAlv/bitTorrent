@@ -77,7 +77,16 @@ func (handler *UpdateHandler) ServeHTTP(responseWriter http.ResponseWriter, requ
 		return
 	}
 
-	_peer := handler.Peers[id]
+	_peer, contained := handler.Peers[id]
+	if !contained {
+		fmt.Println("API: Error: non existing 'id'")
+		respond(responseWriter, BooleanResponse{
+			Successful:   false,
+			ErrorMessage: "Non existing 'id'",
+		})
+		return
+	}
+
 	progress, peers := _peer.Status()
 
 	respond(responseWriter, UpdateResponse{
@@ -104,6 +113,19 @@ func (handler *KillHandler) ServeHTTP(responseWriter http.ResponseWriter, reques
 		})
 		return
 	}
+
+	_peer, contained := handler.Peers[id]
+	if !contained {
+		fmt.Println("API: Error: non existing 'id'")
+		respond(responseWriter, BooleanResponse{
+			Successful:   false,
+			ErrorMessage: "Non existing 'id'",
+		})
+		return
+	}
+
+	_peer.NotificationChannel <- peer.KillNotification{}
+	delete(handler.Peers, id)
 
 	respond(responseWriter, BooleanResponse{
 		Successful:   true,
