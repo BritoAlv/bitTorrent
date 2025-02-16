@@ -1,15 +1,18 @@
 package backend
 
 import (
+	"bittorrent/client/peer"
 	"bittorrent/common"
+	"bittorrent/torrent"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 )
 
-type DownloadHandler struct{}
-type UpdateHandler struct{}
-type KillHandler struct{}
+type DownloadHandler struct{ Peers map[string]*peer.Peer }
+type UpdateHandler struct{ Peers map[string]*peer.Peer }
+type KillHandler struct{ Peers map[string]*peer.Peer }
 
 func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	body, err := getBody(request.Body)
@@ -30,6 +33,18 @@ func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, re
 		})
 		return
 	}
+
+	_peer, err := startPeer(downloadRequest.Id, downloadRequest.TorrentPath, downloadRequest.DownloadPath, downloadRequest.IpAddress, downloadRequest.EncryptionLevel)
+	if err != nil {
+		respond(responseWriter, BooleanResponse{
+			Successful:   false,
+			ErrorMessage: "Internal server error " + err.Error(),
+		})
+		return
+	}
+
+	go _peer.Torrent(nil)
+	handler.Peers[downloadRequest.Id] = _peer
 
 	respond(responseWriter, BooleanResponse{
 		Successful:   true,
@@ -53,13 +68,16 @@ func (handler *UpdateHandler) ServeHTTP(responseWriter http.ResponseWriter, requ
 		return
 	}
 
+	_peer := handler.Peers[id]
+	progress, peers := _peer.Status()
+
 	respond(responseWriter, UpdateResponse{
 		BooleanResponse: BooleanResponse{
 			Successful:   true,
 			ErrorMessage: "",
 		},
-		Progress: 0.5,
-		Peers:    10,
+		Progress: progress,
+		Peers:    peers,
 	})
 }
 
@@ -109,6 +127,25 @@ func respond(responseWriter io.Writer, response interface{}) {
 		})
 		return
 	}
+}
+
+func startPeer(id string, torrentPath string, downloadPath string, ip string, encryptionLevel bool) (*peer.Peer, error) {
+	torrent, err := torrent.ParseTorrentFile(torrentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	listener, err := net.Listen("tcp", ip+":")
+	if err != nil {
+		return nil, err
+	}
+
+	_peer, err := peer.New(id, listener, torrent, downloadPath, encryptionLevel)
+	if err != nil {
+		return nil, err
+	}
+
+	return &_peer, nil
 }
 
 // func getFile(path string) (*os.File, error) {

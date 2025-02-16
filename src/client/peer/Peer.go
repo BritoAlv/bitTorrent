@@ -161,6 +161,18 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 	return nil
 }
 
+func (peer Peer) Status() (progress float32, peers int) {
+	bitfield := peer.pieceManager.Bitfield()
+	indexes := len(bitfield)
+	downloaded := 0
+	for _, value := range bitfield {
+		if value {
+			downloaded++
+		}
+	}
+	return float32(downloaded) / float32(indexes), len(peer.peers)
+}
+
 func (peer *Peer) handleTrackResponseNotification(notification trackNotification) {
 	// TODO: Properly handle the case when the notification was not successful
 	fmt.Println("LOG: handling tracker response notification")
