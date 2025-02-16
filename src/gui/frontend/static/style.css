@@ -16,18 +16,39 @@
     object-fit: contain;
 }
 
-#torrent-file-label{
+#add-torrent-container{
     display: block;
     margin: auto;
-    width: 40px;
-    font-size: 4em;
+    text-align: center;
+    margin-top: 2em;
+    margin-bottom: 2em;
+}
+
+#add-torrent-input{
+    border: none;
+    font-size: 2.5em;
+    outline: none;
+    border-bottom: rgb(60, 60, 60) 2px solid;
+}
+
+#add-torrent-input:focus{
+    outline: none;
+}
+
+#add-torrent-button{
+    border: none;
+    outline: none;
+    background-color: inherit;
+    margin: 0;
+    padding: 0;
+    display: inline;
+    font-size: 2.5em;
     font-weight: bold;
     color: grey;
 }
 
-#torrent-file-label:hover{
+#add-torrent-button:hover{
     color: rgb(60, 60, 60);
-    width: 40px;
 }
 
 ul{
@@ -43,12 +64,12 @@ li{
     text-align: center;
 }
 
-.status-progress-bar, .status-name, .status-download, .status-stop, .status-remove {
+.status-progress-bar, .status-name, .status-peers, .status-download, .status-stop, .status-remove {
     display: inline;
     margin-right: 1em;
 }
 
-.status-name{
+.status-name, .status-peers{
     font-size: 1.5em;
     font-weight: bold;
     color: rgb(60, 60, 60);
