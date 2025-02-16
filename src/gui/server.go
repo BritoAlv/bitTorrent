@@ -3,6 +3,7 @@ package main
 import (
 	"bittorrent/client/peer"
 	"bittorrent/gui/backend"
+	"fmt"
 	"net/http"
 )
 
@@ -20,6 +21,7 @@ func main() {
 	// Wrap the multiplexer with a CORS handler
 	handlerWithCORS := corsMiddleware(requestMultiplexer)
 
+	fmt.Println("Torrente API started")
 	// Run the server
 	http.ListenAndServe("127.0.0.1:9595", handlerWithCORS)
 }

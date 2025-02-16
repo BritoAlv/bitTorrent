@@ -5,6 +5,7 @@ import (
 	"bittorrent/common"
 	"bittorrent/torrent"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -15,8 +16,11 @@ type UpdateHandler struct{ Peers map[string]*peer.Peer }
 type KillHandler struct{ Peers map[string]*peer.Peer }
 
 func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
+	fmt.Println("API: Download-request received")
+
 	body, err := getBody(request.Body)
 	if err != nil {
+		fmt.Println("API: Error: " + err.Error())
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
 			ErrorMessage: err.Error(),
@@ -27,6 +31,7 @@ func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, re
 	var downloadRequest DownloadRequest
 	err = json.Unmarshal(body, &downloadRequest)
 	if err != nil {
+		fmt.Println("API: Error: " + err.Error())
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
 			ErrorMessage: err.Error(),
@@ -36,6 +41,7 @@ func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, re
 
 	_peer, err := startPeer(downloadRequest.Id, downloadRequest.TorrentPath, downloadRequest.DownloadPath, downloadRequest.IpAddress, downloadRequest.EncryptionLevel)
 	if err != nil {
+		fmt.Println("API: Error: " + err.Error())
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
 			ErrorMessage: err.Error(),
@@ -50,13 +56,16 @@ func (handler *DownloadHandler) ServeHTTP(responseWriter http.ResponseWriter, re
 		Successful:   true,
 		ErrorMessage: "",
 	})
+	fmt.Println("API: Download-request handled successfully")
 }
 
 func (handler *UpdateHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
+	fmt.Println("API: Update-request received")
 	queryMap := request.URL.Query()
 	id := queryMap.Get("id")
 
 	if id == "" {
+		fmt.Println("API: Error: expecting 'id' query")
 		respond(responseWriter, UpdateResponse{
 			BooleanResponse: BooleanResponse{
 				Successful:   false,
@@ -79,13 +88,16 @@ func (handler *UpdateHandler) ServeHTTP(responseWriter http.ResponseWriter, requ
 		Progress: progress,
 		Peers:    peers,
 	})
+	fmt.Println("API: Update-request handled successfully")
 }
 
 func (handler *KillHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
+	fmt.Println("API: Kill-request received")
 	queryMap := request.URL.Query()
 	id := queryMap.Get("id")
 
 	if id == "" {
+		fmt.Println("API: Error: expecting 'id' query")
 		respond(responseWriter, BooleanResponse{
 			Successful:   false,
 			ErrorMessage: "Expecting 'id' query",
@@ -95,8 +107,9 @@ func (handler *KillHandler) ServeHTTP(responseWriter http.ResponseWriter, reques
 
 	respond(responseWriter, BooleanResponse{
 		Successful:   true,
-		ErrorMessage: "Killed" + id,
+		ErrorMessage: "",
 	})
+	fmt.Println("API: Kill-request handled successfully")
 }
 
 func getBody(body io.ReadCloser) ([]byte, error) {
