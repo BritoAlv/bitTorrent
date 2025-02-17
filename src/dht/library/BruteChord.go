@@ -35,6 +35,7 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.SetSuccessor(node.DefaultSuccessor())
 	return &node
 }
+
 func (c *BruteChord[T]) GetId() [NumberBits]uint8 {
 	return c.id
 }
