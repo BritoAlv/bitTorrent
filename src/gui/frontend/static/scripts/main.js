@@ -15,7 +15,7 @@ function updateStatusPeriodically() {
 }
 
 async function updateStatus() {
-    torrents.forEach(async (id, torrentPath) => {
+    torrents.forEach(async (id) => {
         if (id == undefined)
             return;
 
