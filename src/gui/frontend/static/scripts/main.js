@@ -11,12 +11,14 @@ const statusList = document.querySelector("#status-list");
 const torrents = new Map();
 
 function updateStatusPeriodically() {
-    setInterval(updateStatus, 10000);
+    setInterval(updateStatus, 500);
 }
 
 async function updateStatus() {
-    torrents.forEach(async (id) => {
-        if (id == undefined)
+    torrents.forEach(async (pair) => {
+        const id = pair[0];
+        const running = pair[1];
+        if (!running)
             return;
 
         const statusProgressBar = document.querySelector(`#status-progress-bar-${id}`);
@@ -35,13 +37,13 @@ async function updateStatus() {
         } else {
             errorMessage.innerHTML += " " + response.ErrorMessage;
         }
-        console.log(response)
     });
 }
 
 async function stop(torrentPath) {
-    const id = torrents.get(torrentPath);
-    torrents.set(torrentPath, undefined);
+    const id = torrents.get(torrentPath)[0];
+    torrents.set(torrentPath, [id, false]);
+
     const statusPeers = document.querySelector(`#status-peers-${id}`);
     
     const response = await get(API_URL + `kill?id=${id}`);
@@ -54,7 +56,12 @@ async function stop(torrentPath) {
 }
 
 async function download(torrentPath) {
-    let id = torrents.get(torrentPath);
+    const pair = torrents.get(torrentPath);
+    let id = undefined;
+    if (pair != undefined){
+        id = pair[0];
+    }
+
     const previousStatus = statusList.querySelector(`#status-${id}`);
 
     if (previousStatus != null) {
@@ -62,7 +69,7 @@ async function download(torrentPath) {
     }
 
     id = randomId();
-    torrents.set(torrentPath, id);
+    torrents.set(torrentPath, [id, true]);
     const downloadRequest = new DownloadRequest(
         id,
         torrentPath,
@@ -105,12 +112,18 @@ async function download(torrentPath) {
 
         statusRemove.addEventListener("click", async () => {
             const path = torrentPath;
-            await stop(path);
-            const id = torrents.get(path);
-            const previousStatus = statusList.querySelector(`#status-${id}`);
+            const pair = torrents.get(path);
+            const id = pair[0];
+            const running = pair[1];
+
+            if (running)
+                await stop(path);
             
+            const previousStatus = statusList.querySelector(`#status-${id}`);
             if (previousStatus != null)
                 statusList.removeChild(previousStatus);
+
+            torrents.delete(path);
         });
     } else {
         errorMessage.innerHTML = response.ErrorMessage;
