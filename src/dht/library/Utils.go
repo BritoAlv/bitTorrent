@@ -1,8 +1,19 @@
 package library
 
-import "math/rand"
+import (
+	"fmt"
+	"math/rand"
+)
 
 var usedId = map[[NumberBits]uint8]bool{}
+
+func ConvertStr(value [NumberBits]uint8) string {
+	var result string
+	for i := 0; i < NumberBits; i++ {
+		result += string(value[i] + '0')
+	}
+	return result
+}
 
 func EqualBytesArray(A []byte, B []byte) bool {
 	if len(A) != len(B) {
@@ -16,13 +27,19 @@ func EqualBytesArray(A []byte, B []byte) bool {
 	return true
 }
 
+// Between : starting from L + 1 in a clockwise order, I can reach M before R + 1.
 func Between(L [NumberBits]uint8, M [NumberBits]uint8, R [NumberBits]uint8) bool {
 	l := BinaryArrayToInt(L)
 	m := BinaryArrayToInt(M)
 	r := BinaryArrayToInt(R)
-	for l != r {
+	fmt.Println(l, m, r)
+	l = (l + 1) % (1 << NumberBits)
+	for {
 		if l == m {
 			return true
+		}
+		if l == r {
+			break
 		}
 		l = (l + 1) % (1 << NumberBits)
 	}

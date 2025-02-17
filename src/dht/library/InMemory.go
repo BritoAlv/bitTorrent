@@ -1,24 +1,43 @@
 package library
 
 import (
-	"iter"
-	"maps"
+	"bittorrent/common"
+	"fmt"
+	"sync"
 )
 
 type DataBaseInMemory struct {
-	dict map[string]ServerInMemory
+	lock   sync.Mutex
+	dict   map[string]*ServerInMemory
+	logger common.Logger
 }
 
 func NewDataBaseInMemory() *DataBaseInMemory {
-	return &DataBaseInMemory{dict: make(map[string]ServerInMemory)}
+	db := DataBaseInMemory{}
+	db.logger = *common.NewLogger("DataBaseInMemory")
+	db.lock = sync.Mutex{}
+	db.dict = make(map[string]*ServerInMemory)
+	return &db
 }
 
 func (db *DataBaseInMemory) AddServer(server *ServerInMemory) {
-	db.dict[server.ServerId] = *server
+	db.logger.WriteToFileOK(fmt.Sprintf("Calling Adding server %s, waiting for lock", server.ServerId))
+	db.lock.Lock()
+	db.logger.WriteToFileOK(fmt.Sprintf("Lock is us, Adding server %s", server.ServerId))
+	db.dict[server.ServerId] = server
+	db.lock.Unlock()
 }
 
-func (db *DataBaseInMemory) GetServers() iter.Seq[ServerInMemory] {
-	return maps.Values(db.dict)
+func (db *DataBaseInMemory) GetServers() []*ServerInMemory {
+	db.logger.WriteToFileOK(fmt.Sprintf("Calling GetServers, waiting for lock"))
+	db.lock.Lock()
+	db.logger.WriteToFileOK(fmt.Sprintf("Lock is us, Creating a copy of the servers list"))
+	values := make([]*ServerInMemory, 0, len(db.dict))
+	for _, value := range db.dict {
+		values = append(values, value)
+	}
+	db.lock.Unlock()
+	return values
 }
 
 type InMemoryContact struct {
@@ -28,45 +47,4 @@ type InMemoryContact struct {
 
 func (i InMemoryContact) getNodeId() [NumberBits]uint8 {
 	return i.NodeId
-}
-
-type ClientInMemory struct {
-	DataBase *DataBaseInMemory
-}
-
-type ServerInMemory struct {
-	DataBase             *DataBaseInMemory
-	ServerId             string
-	NodeId               [NumberBits]uint8
-	ChannelCommunication chan Notification[InMemoryContact]
-}
-
-func (s *ServerInMemory) GetContact() InMemoryContact {
-	return InMemoryContact{
-		Id:     s.ServerId,
-		NodeId: s.NodeId,
-	}
-}
-
-func (s *ServerInMemory) SetData(channel chan Notification[InMemoryContact], Id [NumberBits]uint8) {
-	s.ChannelCommunication = channel
-	s.NodeId = Id
-}
-
-func (c *ClientInMemory) sendRequest(task ClientTask[InMemoryContact]) {
-	database := c.DataBase
-	for server := range database.GetServers() {
-		for _, target := range task.Targets {
-			if target.getNodeId() == server.GetContact().getNodeId() {
-				server.ChannelCommunication <- task.Data
-			}
-		}
-	}
-}
-
-func (c *ClientInMemory) sendRequestEveryone(data Notification[InMemoryContact]) {
-	database := c.DataBase
-	for server := range database.GetServers() {
-		server.ChannelCommunication <- data
-	}
 }
