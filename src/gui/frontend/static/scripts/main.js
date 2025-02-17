@@ -35,7 +35,7 @@ async function updateStatus() {
             statusProgressBar.value = response.Progress * 100;
             statusPeers.innerHTML = response.Peers;            
         } else {
-            errorMessage.innerHTML += " " + response.ErrorMessage;
+            errorMessage.innerHTML = response.ErrorMessage;
         }
     });
 }
@@ -58,14 +58,21 @@ async function stop(torrentPath) {
 async function download(torrentPath) {
     const pair = torrents.get(torrentPath);
     let id = undefined;
+    let running = undefined;
+
     if (pair != undefined){
         id = pair[0];
+        running = pair[1];
+
+        const previousStatus = statusList.querySelector(`#status-${id}`);
+        if (previousStatus != null) {
+            statusList.removeChild(previousStatus);
+        }
     }
 
-    const previousStatus = statusList.querySelector(`#status-${id}`);
-
-    if (previousStatus != null) {
-        statusList.removeChild(previousStatus);
+    if (running === true) {
+        stop(torrentPath);
+        torrents.delete(torrentPath);
     }
 
     id = randomId();

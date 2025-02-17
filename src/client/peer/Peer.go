@@ -128,6 +128,10 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		for message := range peer.NotificationChannel {
 			switch notification := message.(type) {
 			case KillNotification:
+				peer.listener.Close()
+				for _, peerStruct := range peer.peers {
+					peerStruct.Connection.Close()
+				}
 				fmt.Println("LOG: Killed")
 				return
 			case trackNotification:
