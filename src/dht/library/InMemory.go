@@ -2,7 +2,6 @@ package library
 
 import (
 	"bittorrent/common"
-	"fmt"
 	"sync"
 )
 
@@ -21,17 +20,17 @@ func NewDataBaseInMemory() *DataBaseInMemory {
 }
 
 func (db *DataBaseInMemory) AddServer(server *ServerInMemory) {
-	db.logger.WriteToFileOK(fmt.Sprintf("Calling Adding server %s, waiting for lock", server.ServerId))
+	db.logger.WriteToFileOK("Calling Adding server %s, waiting for lock", server.ServerId)
 	db.lock.Lock()
-	db.logger.WriteToFileOK(fmt.Sprintf("Lock is us, Adding server %s", server.ServerId))
+	db.logger.WriteToFileOK("Lock is us, Adding server %s", server.ServerId)
 	db.dict[server.ServerId] = server
 	db.lock.Unlock()
 }
 
 func (db *DataBaseInMemory) GetServers() []*ServerInMemory {
-	db.logger.WriteToFileOK(fmt.Sprintf("Calling GetServers, waiting for lock"))
+	db.logger.WriteToFileOK("Calling GetServers, waiting for lock")
 	db.lock.Lock()
-	db.logger.WriteToFileOK(fmt.Sprintf("Lock is us, Creating a copy of the servers list"))
+	db.logger.WriteToFileOK("Lock is us, Creating a copy of the servers list")
 	values := make([]*ServerInMemory, 0, len(db.dict))
 	for _, value := range db.dict {
 		values = append(values, value)

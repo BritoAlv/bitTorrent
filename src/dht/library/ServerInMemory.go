@@ -2,7 +2,6 @@ package library
 
 import (
 	"bittorrent/common"
-	"fmt"
 )
 
 type ServerInMemory struct {
@@ -27,7 +26,7 @@ func (s *ServerInMemory) GetContact() InMemoryContact {
 		Id:     s.ServerId,
 		NodeId: s.NodeId,
 	}
-	s.Logger.WriteToFileOK(fmt.Sprintf("Calling GetContact Method returning %v", contact))
+	s.Logger.WriteToFileOK("Calling GetContact Method returning %v", contact)
 	return contact
 }
 

@@ -5,22 +5,40 @@ import (
 	"os"
 )
 
+var LogsPath = "./logs/"
+
 type Logger struct {
-	FileName string
+	DefaultPath string
+	FileName    string
+	Prefix      string
 }
 
 func NewLogger(fileID string) *Logger {
-	_, _ = os.OpenFile(fileID, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	return &Logger{FileName: fileID}
+	defaultPath := LogsPath
+	err := os.MkdirAll(defaultPath, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	_, _ = os.OpenFile(defaultPath+fileID, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	return &Logger{
+		DefaultPath: defaultPath,
+		FileName:    fileID,
+		Prefix:      "",
+	}
 }
 
-func (l *Logger) WriteToFileError(content string) {
-	content = "Error (:" + content
-	l.WriteToFileOK(content)
+func (l *Logger) SetPrefix(prefix string) {
+	l.Prefix = prefix
 }
 
-func (l *Logger) WriteToFileOK(content string) {
-	file, err := os.OpenFile(l.FileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (l *Logger) WriteToFileError(format string, args ...interface{}) {
+	format = "[ERROR] " + format
+	l.WriteToFileOK(format, args)
+}
+
+func (l *Logger) WriteToFileOK(format string, args ...interface{}) {
+	content := fmt.Sprintf(format, args...)
+	file, err := os.OpenFile(l.DefaultPath+l.FileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
