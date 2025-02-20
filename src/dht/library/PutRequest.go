@@ -22,7 +22,7 @@ type ReceivedPutRequest[contact Contact] struct {
 }
 
 func (r ReceivedPutRequest[contact]) HandleNotification(b *BruteChord[contact]) {
-	b.logger.WriteToFileOK("Handling ReceivedPutRequest from %v with PutId = %v", BinaryArrayToInt(r.Sender.getNodeId()), r.PutId)
+	b.logger.WriteToFileOK("Handling ReceivedPutRequest from %v with PutId = %v", r.Sender.getNodeId(), r.PutId)
 	b.lock.Lock()
 	b.logger.WriteToFileOK("Setting PendingConfirmation for PutId = %v to True", r.PutId)
 	b.PendingResponses[r.PutId] = Confirmations{
@@ -34,12 +34,12 @@ func (r ReceivedPutRequest[contact]) HandleNotification(b *BruteChord[contact]) 
 
 func (p PutRequest[contact]) HandleNotification(b *BruteChord[contact]) {
 	// send a Received put request
-	b.logger.WriteToFileOK("Handling PutRequest from %v with PutId = %v", BinaryArrayToInt(p.QueryHost.getNodeId()), p.PutId)
+	b.logger.WriteToFileOK("Handling PutRequest from %v with PutId = %v", p.QueryHost.getNodeId(), p.PutId)
 	b.lock.Lock()
 	between := Between(b.GetId(), p.Key, b.GetSuccessor().getNodeId())
 	b.lock.Unlock()
 	if between {
-		b.logger.WriteToFileOK("Sending ReceivedPutRequest to %v with PutId = %v", BinaryArrayToInt(p.QueryHost.getNodeId()), p.PutId)
+		b.logger.WriteToFileOK("Sending ReceivedPutRequest to %v with PutId = %v", p.QueryHost.getNodeId(), p.PutId)
 		b.lock.Lock()
 		b.MyData[p.Key] = p.Value
 		b.lock.Unlock()

@@ -36,7 +36,7 @@ func (g GetRequest[contact]) HandleNotification(b *BruteChord[contact]) {
 }
 
 func (r ReceivedGetRequest[contact]) HandleNotification(b *BruteChord[contact]) {
-	b.logger.WriteToFileOK("Handling ReceivedGetRequest from %v with GetId = %v", BinaryArrayToInt(r.Sender.getNodeId()), r.GetId)
+	b.logger.WriteToFileOK("Handling ReceivedGetRequest from %v with GetId = %v", r.Sender.getNodeId(), r.GetId)
 	b.lock.Lock()
 	b.PendingResponses[r.GetId] = Confirmations{
 		Confirmation: true,

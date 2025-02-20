@@ -4,7 +4,6 @@ import (
 	"bittorrent/common"
 	"math/rand/v2"
 	"reflect"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -44,7 +43,7 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.id = GenerateRandomBinaryId()
 	node.lock = sync.Mutex{}
 	node.DeadContacts = make([]T, 0)
-	node.logger = *common.NewLogger(strconv.Itoa(BinaryArrayToInt(node.id)) + ".txt")
+	node.logger = *common.NewLogger(ToString(node.id) + ".txt")
 	node.NotificationChannelServerNode = make(chan Notification[T])
 	node.ServerChordCommunication = serverChordCommunication
 	node.ServerChordCommunication.SetData(node.NotificationChannelServerNode, node.id)
@@ -70,7 +69,6 @@ func (c *BruteChord[T]) GetSuccessor() T {
 
 func (c *BruteChord[T]) SendRequestUntilConfirmation(clientTask ClientTask[T], taskId int64) {
 	c.logger.WriteToFileOK("Calling SendRequestUntilConfirmation Method with request %v and taskId %v", clientTask, taskId)
-
 	c.lock.Lock()
 	c.PendingResponses[taskId] = Confirmations{Confirmation: false, Value: nil}
 	c.lock.Unlock()
@@ -121,7 +119,7 @@ func (c *BruteChord[T]) SetSuccessor(candidate T) {
 }
 
 func (c *BruteChord[T]) Get(key ChordHash) []byte {
-	c.logger.WriteToFileOK("Calling Get Method on key %v", BinaryArrayToInt(key))
+	c.logger.WriteToFileOK("Calling Get Method on key %v", key)
 	taskId := generateTaskId()
 	clientTask := ClientTask[T]{
 		Targets: []T{c.GetSuccessor()},
@@ -136,7 +134,7 @@ func (c *BruteChord[T]) Get(key ChordHash) []byte {
 }
 
 func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
-	c.logger.WriteToFileOK("Calling Put Method with key %v", BinaryArrayToInt(key))
+	c.logger.WriteToFileOK("Calling Put Method with key %v", key)
 	// create the taskId waiting for the response and send a put request to yourself. It is the same logic for the Get now.
 	taskId := generateTaskId()
 	taskClient := ClientTask[T]{

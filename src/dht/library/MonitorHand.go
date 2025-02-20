@@ -14,7 +14,7 @@ type MonitorHand[T Contact] struct {
 
 func NewMonitorHand[T Contact](name string) *MonitorHand[T] {
 	return &MonitorHand[T]{
-		lastDateKnown: make(map[[8]uint8]time.Time),
+		lastDateKnown: make(map[ChordHash]time.Time),
 		logger:        *common.NewLogger(name + ".txt"),
 		lock:          sync.Mutex{},
 	}

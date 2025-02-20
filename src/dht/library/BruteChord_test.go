@@ -13,6 +13,12 @@ import (
 const NumberNodes = 30
 const NumberOfRuns = 2
 
+func Sort(ids []ChordHash) {
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i] < ids[j]
+	})
+}
+
 func SetLogDirectoryPath(name string) {
 	common.LogsPath = "./logs/" + name + strconv.Itoa(time.Now().Nanosecond()) + "/"
 }
@@ -32,8 +38,8 @@ nodes should have as its successor the next one in the ring.
 func TestBasicChordBehaviourInitialization(t *testing.T) {
 	SetLogDirectoryPath("TestBasicChordBehaviourInitialization")
 	var database = *NewDataBaseInMemory()
-	var ids = make([]int, 0, NumberNodes)
-	var nodes = make(map[int]*BruteChord[InMemoryContact])
+	var ids = make([]ChordHash, 0, NumberNodes)
+	var nodes = make(map[ChordHash]*BruteChord[InMemoryContact])
 	var barrier = sync.WaitGroup{}
 	for i := 0; i < NumberNodes; i++ {
 		iString := strconv.Itoa(i)
@@ -41,22 +47,22 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 		var client = NewClientInMemory(&database, "Client"+iString)
 		database.AddServer(server)
 		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
-		intNodeId := BinaryArrayToInt(node.GetId())
+		intNodeId := node.GetId()
 		nodes[intNodeId] = node
-		ids = append(ids, BinaryArrayToInt(node.GetId()))
+		ids = append(ids, node.GetId())
 		go func() {
 			barrier.Add(1)
 			node.BeginWorking()
 			barrier.Done()
 		}()
 	}
-	sort.Ints(ids)
+	Sort(ids)
 	time.Sleep((3 * WaitingTime) * time.Second)
 	for i := 0; i < NumberNodes; i++ {
 		nodeId := ids[i]
 		node := nodes[nodeId]
 		successor := node.GetSuccessor()
-		successorId := BinaryArrayToInt(successor.NodeId)
+		successorId := successor.NodeId
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {
 			t.Errorf("Node %v has successor %v, expected %v", nodeId, successorId, expectedSuccessorId)
@@ -73,7 +79,7 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 func TestBasicChordBehaviourNoDead(t *testing.T) {
 	SetLogDirectoryPath("TestBasicChordBehaviourNoDead")
 	var database = *NewDataBaseInMemory()
-	var nodes = make(map[int]*BruteChord[InMemoryContact])
+	var nodes = make(map[ChordHash]*BruteChord[InMemoryContact])
 	var barrier = sync.WaitGroup{}
 	for i := 0; i < NumberNodes; i++ {
 		iString := strconv.Itoa(i)
@@ -81,7 +87,7 @@ func TestBasicChordBehaviourNoDead(t *testing.T) {
 		var client = NewClientInMemory(&database, "Client"+iString)
 		database.AddServer(server)
 		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
-		intNodeId := BinaryArrayToInt(node.GetId())
+		intNodeId := node.GetId()
 		nodes[intNodeId] = node
 		go func() {
 			barrier.Add(1)
@@ -92,7 +98,7 @@ func TestBasicChordBehaviourNoDead(t *testing.T) {
 	time.Sleep((3 * WaitingTime) * time.Second)
 	for _, node := range nodes {
 		if len(node.DeadContacts) > 0 {
-			t.Errorf("Node %v has the dead contacts ", BinaryArrayToInt(node.GetId()))
+			t.Errorf("Node %v has the dead contacts ", node.GetId())
 		}
 	}
 	for _, node := range nodes {
@@ -106,8 +112,8 @@ func TestBasicChordBehaviourNoDead(t *testing.T) {
 func TestBasicChordBehaviourStabilization(t *testing.T) {
 	SetLogDirectoryPath("TestBasicChordBehaviourStabilization")
 	var database = *NewDataBaseInMemory()
-	var ids = make([]int, 0, NumberNodes)
-	var nodes = make(map[int]*BruteChord[InMemoryContact])
+	var ids = make([]ChordHash, 0, NumberNodes)
+	var nodes = make(map[ChordHash]*BruteChord[InMemoryContact])
 	var barrier = sync.WaitGroup{}
 	for i := 0; i < NumberNodes; i++ {
 		iString := strconv.Itoa(i)
@@ -115,16 +121,16 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		var client = NewClientInMemory(&database, "Client"+iString)
 		database.AddServer(server)
 		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
-		intNodeId := BinaryArrayToInt(node.GetId())
+		intNodeId := node.GetId()
 		nodes[intNodeId] = node
-		ids = append(ids, BinaryArrayToInt(node.GetId()))
+		ids = append(ids, node.GetId())
 		go func() {
 			barrier.Add(1)
 			node.BeginWorking()
 			barrier.Done()
 		}()
 	}
-	sort.Ints(ids)
+	Sort(ids)
 	time.Sleep((3 * WaitingTime) * time.Second)
 	down := make([]*BruteChord[InMemoryContact], 0, NumberNodes)
 	for i := 0; i < NumberNodes; i++ {
@@ -147,7 +153,7 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		nodeId := ids[i]
 		node := nodes[nodeId]
 		successor := node.GetSuccessor()
-		successorId := BinaryArrayToInt(successor.NodeId)
+		successorId := successor.NodeId
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {
 			t.Errorf("Node %v has successor %v, expected %v", nodeId, successorId, expectedSuccessorId)
