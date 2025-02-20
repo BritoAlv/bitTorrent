@@ -8,7 +8,7 @@ import (
 
 type MonitorHand[T Contact] struct {
 	logger        common.Logger
-	lastDateKnown map[[NumberBits]uint8]time.Time
+	lastDateKnown map[ChordHash]time.Time
 	lock          sync.Mutex
 }
 

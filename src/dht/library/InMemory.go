@@ -41,9 +41,9 @@ func (db *DataBaseInMemory) GetServers() []*ServerInMemory {
 
 type InMemoryContact struct {
 	Id     string
-	NodeId [NumberBits]uint8
+	NodeId ChordHash
 }
 
-func (i InMemoryContact) getNodeId() [NumberBits]uint8 {
+func (i InMemoryContact) getNodeId() ChordHash {
 	return i.NodeId
 }

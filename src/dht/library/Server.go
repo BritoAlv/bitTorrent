@@ -17,5 +17,5 @@ a method for handling that.
 
 type Server[T Contact] interface {
 	GetContact() T
-	SetData(channel chan Notification[T], NodeId [NumberBits]uint8)
+	SetData(channel chan Notification[T], NodeId ChordHash)
 }

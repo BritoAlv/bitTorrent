@@ -7,7 +7,7 @@ import (
 type ServerInMemory struct {
 	DataBase             *DataBaseInMemory
 	ServerId             string
-	NodeId               [NumberBits]uint8
+	NodeId               ChordHash
 	ChannelCommunication chan Notification[InMemoryContact]
 	Logger               common.Logger
 }
@@ -30,7 +30,7 @@ func (s *ServerInMemory) GetContact() InMemoryContact {
 	return contact
 }
 
-func (s *ServerInMemory) SetData(channel chan Notification[InMemoryContact], Id [NumberBits]uint8) {
+func (s *ServerInMemory) SetData(channel chan Notification[InMemoryContact], Id ChordHash) {
 	s.ChannelCommunication = channel
 	s.NodeId = Id
 }

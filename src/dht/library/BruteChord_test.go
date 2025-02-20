@@ -27,7 +27,7 @@ func TestRunMultipleTimes(t *testing.T) {
 
 /*
 TestBasicChordBehaviourInitialization : N nodes are created simultaneously, eventually after stabilization occurs all the
-nodes should have as its successorList the next one in the ring.
+nodes should have as its successor the next one in the ring.
 */
 func TestBasicChordBehaviourInitialization(t *testing.T) {
 	SetLogDirectoryPath("TestBasicChordBehaviourInitialization")
@@ -59,7 +59,7 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 		successorId := BinaryArrayToInt(successor.NodeId)
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {
-			t.Errorf("Node %v has successorList %v, expected %v", nodeId, successorId, expectedSuccessorId)
+			t.Errorf("Node %v has successor %v, expected %v", nodeId, successorId, expectedSuccessorId)
 		}
 	}
 	for i := 0; i < NumberNodes; i++ {
@@ -150,7 +150,7 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		successorId := BinaryArrayToInt(successor.NodeId)
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {
-			t.Errorf("Node %v has successorList %v, expected %v", nodeId, successorId, expectedSuccessorId)
+			t.Errorf("Node %v has successor %v, expected %v", nodeId, successorId, expectedSuccessorId)
 		}
 	}
 	for i := 0; i < NumberNodes; i++ {

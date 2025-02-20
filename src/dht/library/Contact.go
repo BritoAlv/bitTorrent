@@ -6,5 +6,5 @@ can communicate with a server (Chord Node waiting to receive a request).
 */
 
 type Contact interface {
-	getNodeId() [NumberBits]uint8
+	getNodeId() ChordHash
 }

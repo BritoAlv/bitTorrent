@@ -42,9 +42,9 @@ func TestIntToBinaryArray(t *testing.T) {
 
 func TestBetween(t *testing.T) {
 	type args struct {
-		L [NumberBits]uint8
-		M [NumberBits]uint8
-		R [NumberBits]uint8
+		L ChordHash
+		M ChordHash
+		R ChordHash
 	}
 	tests := []struct {
 		name string
@@ -82,7 +82,7 @@ func TestBetween(t *testing.T) {
 
 func TestBinaryArrayToInt(t *testing.T) {
 	type args struct {
-		array [NumberBits]uint8
+		array ChordHash
 	}
 	tests := []struct {
 		name string
@@ -91,17 +91,17 @@ func TestBinaryArrayToInt(t *testing.T) {
 	}{
 		{
 			name: "Test 1",
-			args: args{array: [NumberBits]uint8{0, 0, 0, 0, 0, 0, 0, 0}},
+			args: args{array: ChordHash{0, 0, 0, 0, 0, 0, 0, 0}},
 			want: 0,
 		},
 		{
 			name: "Test 2",
-			args: args{array: [NumberBits]uint8{1, 0, 0, 0, 0, 0, 0, 0}},
+			args: args{array: ChordHash{1, 0, 0, 0, 0, 0, 0, 0}},
 			want: 1,
 		},
 		{
 			name: "Test 3",
-			args: args{array: [NumberBits]uint8{1, 1, 1, 1, 1, 1, 1, 1}},
+			args: args{array: ChordHash{1, 1, 1, 1, 1, 1, 1, 1}},
 			want: 255,
 		},
 	}

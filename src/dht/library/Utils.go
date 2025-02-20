@@ -5,9 +5,9 @@ import (
 	"math/rand"
 )
 
-var usedId = map[[NumberBits]uint8]bool{}
+var usedId = map[ChordHash]bool{}
 
-func ConvertStr(value [NumberBits]uint8) string {
+func ConvertStr(value ChordHash) string {
 	var result string
 	for i := 0; i < NumberBits; i++ {
 		result += string(value[i] + '0')
@@ -28,7 +28,7 @@ func EqualBytesArray(A []byte, B []byte) bool {
 }
 
 // Between : starting from L + 1 in a clockwise order, I can reach M before R + 1.
-func Between(L [NumberBits]uint8, M [NumberBits]uint8, R [NumberBits]uint8) bool {
+func Between(L ChordHash, M ChordHash, R ChordHash) bool {
 	l := BinaryArrayToInt(L)
 	m := BinaryArrayToInt(M)
 	r := BinaryArrayToInt(R)
@@ -46,8 +46,8 @@ func Between(L [NumberBits]uint8, M [NumberBits]uint8, R [NumberBits]uint8) bool
 	return false
 }
 
-func GenerateRandomBinaryId() [NumberBits]uint8 {
-	var result [NumberBits]uint8
+func GenerateRandomBinaryId() ChordHash {
+	var result ChordHash
 	for {
 		for i := 0; i < NumberBits; i++ {
 			number := rand.Float32()
@@ -65,8 +65,8 @@ func GenerateRandomBinaryId() [NumberBits]uint8 {
 	return result
 }
 
-func IntToBinaryArray(number int) [NumberBits]uint8 {
-	var result [NumberBits]uint8
+func IntToBinaryArray(number int) ChordHash {
+	var result ChordHash
 	if number >= (1 << NumberBits) {
 		return result
 	}
@@ -77,7 +77,7 @@ func IntToBinaryArray(number int) [NumberBits]uint8 {
 	return result
 }
 
-func BinaryArrayToInt(array [NumberBits]uint8) int {
+func BinaryArrayToInt(array ChordHash) int {
 	result := 0
 	for i := 0; i < NumberBits; i++ {
 		result = result*2 + int(array[NumberBits-i-1])
