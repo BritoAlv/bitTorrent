@@ -46,6 +46,16 @@ func (db *DataBaseInMemory) GetServers() []*ServerInMemory {
 	return servers
 }
 
+func (db *DataBaseInMemory) GetNodes() []*BruteChord[InMemoryContact] {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+	var nodes []*BruteChord[InMemoryContact]
+	for _, node := range db.dict {
+		nodes = append(nodes, node.Node)
+	}
+	return nodes
+}
+
 type InMemoryContact struct {
 	Id     string
 	NodeId ChordHash

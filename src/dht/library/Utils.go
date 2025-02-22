@@ -1,7 +1,6 @@
 package library
 
 import (
-	"fmt"
 	"math/rand/v2"
 )
 
@@ -25,7 +24,6 @@ func GenerateRandomBinaryId() ChordHash {
 
 // Between : starting from L + 1 in a clockwise order, I can reach M before R + 1.
 func Between(L ChordHash, M ChordHash, R ChordHash) bool {
-	fmt.Println(L, M, R)
 	L = (L + 1) % (1 << NumberBits)
 	for {
 		if L == M {

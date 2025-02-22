@@ -25,7 +25,7 @@ func (c *BruteChord[T]) ReplicateData(successorIndex int, target T) {
 		Data: ReceiveDataReplicate[T]{
 			SuccessorIndex: successorIndex,
 			TaskId:         taskId,
-			Data:           c.GetAllData(),
+			Data:           c.GetAllOwnData(),
 			DataOwner:      c.GetContact(),
 		},
 	}

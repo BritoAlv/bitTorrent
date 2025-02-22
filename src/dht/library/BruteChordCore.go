@@ -61,9 +61,23 @@ func (c *BruteChord[T]) GetData(key ChordHash) []byte {
 	return data
 }
 
-func (c *BruteChord[T]) GetAllData() Store {
+func (c *BruteChord[T]) GetAllOwnData() Store {
 	c.lock.Lock()
 	data := c.MyData // this is a copy or a reference ?
+	c.lock.Unlock()
+	return data
+}
+
+func (c *BruteChord[T]) GetSuccessorReplicatedData() Store {
+	c.lock.Lock()
+	data := c.successor.Data
+	c.lock.Unlock()
+	return data
+}
+
+func (c *BruteChord[T]) GetSuccessorSuccessorReplicatedData() Store {
+	c.lock.Lock()
+	data := c.successorSuccessor.Data
 	c.lock.Unlock()
 	return data
 }
