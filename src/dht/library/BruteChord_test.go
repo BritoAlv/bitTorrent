@@ -45,8 +45,8 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 		iString := strconv.Itoa(i)
 		var server = NewServerInMemory(&database, "Server"+iString)
 		var client = NewClientInMemory(&database, "Client"+iString)
-		database.AddServer(server)
 		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
+		database.AddNode(node)
 		intNodeId := node.GetId()
 		nodes[intNodeId] = node
 		ids = append(ids, node.GetId())
@@ -85,8 +85,8 @@ func TestBasicChordBehaviourNoDead(t *testing.T) {
 		iString := strconv.Itoa(i)
 		var server = NewServerInMemory(&database, "Server"+iString)
 		var client = NewClientInMemory(&database, "Client"+iString)
-		database.AddServer(server)
 		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
+		database.AddNode(node)
 		intNodeId := node.GetId()
 		nodes[intNodeId] = node
 		go func() {
@@ -119,8 +119,8 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		iString := strconv.Itoa(i)
 		var server = NewServerInMemory(&database, "Server"+iString)
 		var client = NewClientInMemory(&database, "Client"+iString)
-		database.AddServer(server)
 		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
+		database.AddNode(node)
 		intNodeId := node.GetId()
 		nodes[intNodeId] = node
 		ids = append(ids, node.GetId())

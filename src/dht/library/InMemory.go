@@ -5,9 +5,15 @@ import (
 	"sync"
 )
 
+type NodeDB struct {
+	Node   *BruteChord[InMemoryContact]
+	Server *ServerInMemory
+	Client *ClientInMemory
+}
+
 type DataBaseInMemory struct {
 	lock   sync.Mutex
-	dict   map[string]*ServerInMemory
+	dict   map[ChordHash]NodeDB
 	logger common.Logger
 }
 
@@ -15,28 +21,29 @@ func NewDataBaseInMemory() *DataBaseInMemory {
 	db := DataBaseInMemory{}
 	db.logger = *common.NewLogger("DataBaseInMemory")
 	db.lock = sync.Mutex{}
-	db.dict = make(map[string]*ServerInMemory)
+	db.dict = make(map[ChordHash]NodeDB)
 	return &db
 }
 
-func (db *DataBaseInMemory) AddServer(server *ServerInMemory) {
-	db.logger.WriteToFileOK("Calling Adding server %s, waiting for lock", server.ServerId)
+func (db *DataBaseInMemory) AddNode(node *BruteChord[InMemoryContact], server *ServerInMemory, client *ClientInMemory) {
 	db.lock.Lock()
-	db.logger.WriteToFileOK("Lock is us, Adding server %s", server.ServerId)
-	db.dict[server.ServerId] = server
+	db.logger.WriteToFileOK("Adding node %v to database", node.GetId())
+	db.dict[node.id] = NodeDB{
+		Node:   node,
+		Server: server,
+		Client: client,
+	}
 	db.lock.Unlock()
 }
 
 func (db *DataBaseInMemory) GetServers() []*ServerInMemory {
-	db.logger.WriteToFileOK("Calling GetServers, waiting for lock")
 	db.lock.Lock()
-	db.logger.WriteToFileOK("Lock is us, Creating a copy of the servers list")
-	values := make([]*ServerInMemory, 0, len(db.dict))
-	for _, value := range db.dict {
-		values = append(values, value)
+	defer db.lock.Unlock()
+	var servers []*ServerInMemory
+	for _, node := range db.dict {
+		servers = append(servers, node.Server)
 	}
-	db.lock.Unlock()
-	return values
+	return servers
 }
 
 type InMemoryContact struct {

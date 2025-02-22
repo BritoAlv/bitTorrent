@@ -14,8 +14,8 @@ func main() {
 		iString := strconv.Itoa(i)
 		var server = library.NewServerInMemory(&database, "Server"+iString)
 		var client = library.NewClientInMemory(&database, "Client"+iString)
-		database.AddServer(server)
 		node := library.NewBruteChord[library.InMemoryContact](server, client, library.NewMonitorHand[library.InMemoryContact]("Monitor"+iString))
+		database.AddNode(node, server, client)
 		go func() {
 			barrier.Add(1)
 			node.BeginWorking()
