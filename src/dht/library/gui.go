@@ -52,7 +52,11 @@ func (g *GUI) UpdateState() {
 			} else {
 				// Create a new card for the node if it doesn't exist
 				label := widget.NewLabel(state)
-				card := widget.NewCard(fmt.Sprintf("Node %d", nodeID), "", label)
+
+				fixedSizeContainer := container.NewScroll(container.NewVBox(label))
+				fixedSizeContainer.SetMinSize(fyne.NewSize(250, 250))
+
+				card := widget.NewCard(fmt.Sprintf("Node %d", nodeID), "", fixedSizeContainer)
 				g.nodeLabels[nodeID] = label
 				g.Grid.Add(card)
 			}
