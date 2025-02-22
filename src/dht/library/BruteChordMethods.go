@@ -85,7 +85,7 @@ func (c *BruteChord[T]) sendCheckPredecessor() {
 	c.logger.WriteToFileOK("Sending AreYouMyPredecessor Notification to Everyone")
 	c.ClientChordCommunication.sendRequestEveryone(AreYouMyPredecessor[T]{
 		Contact:     c.GetContact(),
-		MySuccessor: c.GetSuccessorSuccessor(),
+		MySuccessor: c.GetSuccessor(),
 	})
 }
 

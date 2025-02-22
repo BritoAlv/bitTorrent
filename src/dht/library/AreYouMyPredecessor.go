@@ -79,8 +79,8 @@ func (a AreYouMyPredecessor[contact]) HandleNotification(b *BruteChord[contact])
 	// If the Node asking is between me and my successor, then I am the predecessor of that Node.
 	if Between(b.GetId(), a.Contact.getNodeId(), b.GetSuccessor().getNodeId()) {
 		b.logger.WriteToFileOK("I am the predecessor of %v", a.Contact.getNodeId())
-		if b.GetSuccessor().getNodeId() == a.Contact.getNodeId() {
-			b.logger.WriteToFileOK("I am already its predecessor of %v", a.Contact.getNodeId())
+		if b.GetSuccessor().getNodeId() == a.Contact.getNodeId() && b.GetSuccessorSuccessor().getNodeId() == a.MySuccessor.getNodeId() {
+			b.logger.WriteToFileOK("I am already its predecessor of %v, and I have also already its predecesor so nothing new", a.Contact.getNodeId())
 		} else {
 			b.SetSuccessor(a.Contact)
 			b.SetSuccessorSuccessor(a.MySuccessor)

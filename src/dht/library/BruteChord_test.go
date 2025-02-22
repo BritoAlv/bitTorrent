@@ -1,7 +1,6 @@
 package library
 
 import (
-	"bittorrent/common"
 	"math/rand"
 	"sort"
 	"strconv"
@@ -17,10 +16,6 @@ func Sort(ids []ChordHash) {
 	sort.Slice(ids, func(i, j int) bool {
 		return ids[i] < ids[j]
 	})
-}
-
-func SetLogDirectoryPath(name string) {
-	common.LogsPath = "./logs/" + name + strconv.Itoa(time.Now().Nanosecond()) + "/"
 }
 
 func TestRunMultipleTimes(t *testing.T) {

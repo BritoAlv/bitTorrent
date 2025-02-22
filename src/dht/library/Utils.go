@@ -1,7 +1,10 @@
 package library
 
 import (
+	"bittorrent/common"
 	"math/rand/v2"
+	"strconv"
+	"time"
 )
 
 var usedId = map[ChordHash]bool{}
@@ -35,4 +38,8 @@ func Between(L ChordHash, M ChordHash, R ChordHash) bool {
 		L = (L + 1) % (1 << NumberBits)
 	}
 	return false
+}
+
+func SetLogDirectoryPath(name string) {
+	common.LogsPath = "./logs/" + name + strconv.Itoa(time.Now().Nanosecond()) + "/"
 }

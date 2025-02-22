@@ -44,7 +44,10 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.ServerChordCommunication.SetData(node.NotificationChannelServerNode, node.id)
 	node.ClientChordCommunication = clientChordCommunication
 	node.Monitor = monitor
+	node.successor.Data = make(Store)
+	node.successorSuccessor.Data = make(Store)
 	node.SetSuccessor(node.DefaultSuccessor())
+	node.SetSuccessorSuccessor(node.DefaultSuccessor())
 	node.SetPredecessor(node.DefaultSuccessor())
 	node.PendingResponses = make(map[int64]Confirmations)
 	return &node

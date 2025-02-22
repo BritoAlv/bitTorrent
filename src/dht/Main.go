@@ -27,6 +27,7 @@ func StartGUI(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
 }
 
 func main() {
+	library.SetLogDirectoryPath("Main")
 	var database = *library.NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
 	N := 10
