@@ -24,7 +24,7 @@ func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 		iteration:  0,
 		window:     window,
 		nodeLabels: make(map[int]*widget.Label),
-		Grid:       container.NewGridWithColumns(5), // Adjust columns as needed
+		Grid:       container.NewGridWithColumns(4), // Adjust columns as needed
 	}
 
 	window.SetContent(gui.Grid)
