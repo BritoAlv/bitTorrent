@@ -36,12 +36,7 @@ type ConfirmReplication[contact Contact] struct {
 func (c ConfirmReplication[contact]) HandleNotification(b *BruteChord[contact]) {
 	b.logger.WriteToFileOK("Handling ConfirmReplication with TaskId %v", c.TaskId)
 	b.logger.WriteToFileOK("I will now delete the data from my local storage")
-	b.lock.Lock()
-	b.PendingResponses[c.TaskId] = Confirmations{
-		Confirmation: true,
-		Value:        nil,
-	}
-	b.lock.Unlock()
+	b.SetPendingResponse(c.TaskId, Confirmations{Confirmation: true, Value: nil})
 }
 
 func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]) {
@@ -50,9 +45,7 @@ func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]
 		if b.successor.Contact.getNodeId() == r.DataOwner.getNodeId() {
 			b.logger.WriteToFileOK("I am the first successor of %v", r.DataOwner.getNodeId())
 			b.logger.WriteToFileOK("I will now store the data")
-			b.lock.Lock()
-			b.successor.Data = r.Data
-			b.lock.Unlock()
+			b.ReplaceStore(&b.successor.Data, r.Data)
 			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 				Targets: []contact{r.DataOwner},
 				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
@@ -64,9 +57,7 @@ func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]
 		if b.successorSuccessor.Contact.getNodeId() == r.DataOwner.getNodeId() {
 			b.logger.WriteToFileOK("I am the second successor of %v", r.DataOwner.getNodeId())
 			b.logger.WriteToFileOK("I will now store the data")
-			b.lock.Lock()
-			b.successorSuccessor.Data = r.Data
-			b.lock.Unlock()
+			b.ReplaceStore(&b.successorSuccessor.Data, r.Data)
 			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 				Targets: []contact{r.DataOwner},
 				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
@@ -90,7 +81,6 @@ func (a AreYouMyPredecessor[contact]) HandleNotification(b *BruteChord[contact])
 		b.logger.WriteToFileOK("I am the predecessor of %v", a.Contact.getNodeId())
 		if b.GetSuccessor().getNodeId() == a.Contact.getNodeId() {
 			b.logger.WriteToFileOK("I am already its predecessor of %v", a.Contact.getNodeId())
-			return
 		} else {
 			b.SetSuccessor(a.Contact)
 			b.SetSuccessorSuccessor(a.MySuccessor)

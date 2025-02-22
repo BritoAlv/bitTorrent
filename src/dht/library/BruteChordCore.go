@@ -2,7 +2,6 @@ package library
 
 import (
 	"bittorrent/common"
-	"math/rand/v2"
 	"reflect"
 	"sync"
 	"time"
@@ -16,10 +15,6 @@ type ContactWithData[T Contact] struct {
 type Confirmations struct {
 	Confirmation bool
 	Value        []byte // this have to be interpreted by the caller by now.
-}
-
-func generateTaskId() int64 {
-	return rand.Int64()
 }
 
 type BruteChord[T Contact] struct {
@@ -59,6 +54,32 @@ func (c *BruteChord[T]) GetId() ChordHash {
 	return c.id
 }
 
+func (c *BruteChord[T]) GetData(key ChordHash) []byte {
+	c.lock.Lock()
+	data := c.MyData[key]
+	c.lock.Unlock()
+	return data
+}
+
+func (c *BruteChord[T]) GetAllData() Store {
+	c.lock.Lock()
+	data := c.MyData // this is a copy or a reference ?
+	c.lock.Unlock()
+	return data
+}
+
+func (c *BruteChord[T]) SetData(key ChordHash, value []byte) {
+	c.lock.Lock()
+	c.MyData[key] = value
+	c.lock.Unlock()
+}
+
+func (c *BruteChord[T]) ReplaceStore(placeHolder *Store, data Store) {
+	c.lock.Lock()
+	*placeHolder = data
+	c.lock.Unlock()
+}
+
 func (c *BruteChord[T]) GetSuccessor() T {
 	c.lock.Lock()
 	c.logger.WriteToFileOK("Calling GetSuccessor Method, returning %v", c.successor)
@@ -67,104 +88,46 @@ func (c *BruteChord[T]) GetSuccessor() T {
 	return successor
 }
 
-func (c *BruteChord[T]) SendRequestUntilConfirmation(clientTask ClientTask[T], taskId int64) {
-	c.logger.WriteToFileOK("Calling SendRequestUntilConfirmation Method with request %v and taskId %v", clientTask, taskId)
+func (c *BruteChord[T]) SetPendingResponse(taskId int64, confirmation Confirmations) {
 	c.lock.Lock()
-	c.PendingResponses[taskId] = Confirmations{Confirmation: false, Value: nil}
+	c.PendingResponses[taskId] = confirmation
 	c.lock.Unlock()
-	for i := 0; i < Attempts; i++ {
-		c.lock.Lock()
-		val, _ := c.PendingResponses[taskId]
-		c.lock.Unlock()
-		if val.Confirmation {
-			c.logger.WriteToFileOK("Received Confirmation for taskId %v", taskId)
-			return
-		}
-		c.ClientChordCommunication.sendRequest(clientTask)
-		time.Sleep(WaitingTime * time.Second)
-	}
-	c.logger.WriteToFileOK("Didn't receive Confirmation for taskId %v", taskId)
 }
 
-func (c *BruteChord[T]) ReplicateData(successorIndex int, target T) {
+func (c *BruteChord[T]) GetPendingResponse(taskId int64) Confirmations {
 	c.lock.Lock()
-	c.logger.WriteToFileOK("Calling ReplicateData Method with successorIndex %v designated to %v", successorIndex, target)
+	confirmation, _ := c.PendingResponses[taskId]
+	c.lock.Unlock()
+	return confirmation
+}
 
-	taskId := generateTaskId()
-	clientTask := ClientTask[T]{
-		Targets: []T{target},
-		Data: ReceiveDataReplicate[T]{
-			SuccessorIndex: successorIndex,
-			TaskId:         taskId,
-			Data:           c.MyData,
-			DataOwner:      c.GetContact(),
-		},
+func (c *BruteChord[T]) releaseReplicas(placeHolder *Store) {
+	c.lock.Lock()
+	for key, data := range *placeHolder {
+		c.MyData[key] = data
+		delete(*placeHolder, key)
 	}
-	go c.SendRequestUntilConfirmation(clientTask, taskId)
+	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) SetSuccessor(candidate T) {
+	if c.successor.Contact.getNodeId() != candidate.getNodeId() {
+		c.logger.WriteToFileOK("Because I'll have a new successor, I'll have to release the replicas I was holding for that old successor")
+		c.releaseReplicas(&c.successor.Data)
+	}
 	c.lock.Lock()
 	curDate := time.Now()
 	c.Monitor.AddContact(candidate, curDate)
 	c.logger.WriteToFileOK("Calling SetSuccessor Method, setting %v at date %v", candidate, curDate)
-	if c.successor.Contact.getNodeId() != candidate.getNodeId() {
-		c.logger.WriteToFileOK("Because I'll have a new successor, I'll have to release the replicas I was holding for that old successor")
-		for key, data := range c.successor.Data {
-			c.MyData[key] = data
-		}
-	}
 	c.successor = ContactWithData[T]{Contact: candidate, Data: make(Store)}
 	c.lock.Unlock()
 }
 
-func (c *BruteChord[T]) Get(key ChordHash) []byte {
-	c.logger.WriteToFileOK("Calling Get Method on key %v", key)
-	taskId := generateTaskId()
-	clientTask := ClientTask[T]{
-		Targets: []T{c.GetSuccessor()},
-		Data: GetRequest[T]{
-			QueryHost: c.GetContact(),
-			GetId:     taskId,
-			Key:       key,
-		},
-	}
-	c.SendRequestUntilConfirmation(clientTask, taskId)
-	return c.PendingResponses[taskId].Value
-}
-
-func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
-	c.logger.WriteToFileOK("Calling Put Method with key %v", key)
-	// create the taskId waiting for the response and send a put request to yourself. It is the same logic for the Get now.
-	taskId := generateTaskId()
-	taskClient := ClientTask[T]{
-		Targets: []T{c.GetSuccessor()},
-		Data: PutRequest[T]{
-			QueryHost: c.GetContact(),
-			PutId:     taskId,
-			Key:       key,
-			Value:     value,
-		},
-	}
-	c.SendRequestUntilConfirmation(taskClient, taskId)
-	return c.PendingResponses[taskId].Confirmation
-}
-
-func (c *BruteChord[T]) StabilizeStore() {
-	curDate := time.Now()
-	c.lock.Lock()
-	c.logger.WriteToFileOK("Stabilizing Store at time %v", curDate)
-	for key, data := range c.MyData {
-		c.logger.WriteToFileOK("Calling Put on key %v", key)
-		go c.Put(key, data)
-		delete(c.MyData, key)
-		c.logger.WriteToFileOK("Deleted key %v from Store", key)
-	}
-	c.lock.Unlock()
-}
-
 func (c *BruteChord[T]) GetSuccessorSuccessor() T {
-	return c.successorSuccessor.Contact
+	c.lock.Lock()
+	successorSuccessor := c.successorSuccessor.Contact
+	c.lock.Unlock()
+	return successorSuccessor
 }
 
 func (c *BruteChord[T]) GetPredecessor() T {
@@ -175,22 +138,21 @@ func (c *BruteChord[T]) GetPredecessor() T {
 }
 
 func (c *BruteChord[T]) SetSuccessorSuccessor(candidate T) {
-	curDate := time.Now()
+	if c.successorSuccessor.Contact.getNodeId() != candidate.getNodeId() {
+		c.logger.WriteToFileOK("Because I'll have a new successorSuccessor, I'll have to release the replicas I was holding for that old successorSuccessor")
+		c.releaseReplicas(&c.successorSuccessor.Data)
+	}
 	c.lock.Lock()
+	curDate := time.Now()
 	c.Monitor.AddContact(candidate, curDate)
 	c.logger.WriteToFileOK("Calling SetSuccessorSuccessor Method, setting %v at date %v", candidate, curDate)
-	if c.successorSuccessor.Contact.getNodeId() != candidate.getNodeId() {
-		for key, data := range c.successorSuccessor.Data {
-			c.MyData[key] = data
-		}
-	}
 	c.successorSuccessor = ContactWithData[T]{Contact: candidate, Data: make(Store)}
 	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) SetPredecessor(candidate T) {
-	curDate := time.Now()
 	c.lock.Lock()
+	curDate := time.Now()
 	c.Monitor.AddContact(candidate, curDate)
 	c.logger.WriteToFileOK("Calling SetPredecessor Method, setting %v at date %v", candidate, curDate)
 	c.predecessorRef = candidate
@@ -233,46 +195,4 @@ func (c *BruteChord[T]) cpu() {
 			go c.StabilizeStore()       // Stabilize My Data, because due to changes in successor I may have data that is not mine.
 		}
 	}
-}
-
-func (c *BruteChord[T]) sendCheckPredecessor() {
-	c.logger.WriteToFileOK("Calling sendCheckPredecessor Method")
-	c.logger.WriteToFileOK("Sending AreYouMyPredecessor Notification to Everyone")
-	c.ClientChordCommunication.sendRequestEveryone(AreYouMyPredecessor[T]{
-		Contact:     c.GetContact(),
-		MySuccessor: c.GetSuccessorSuccessor(),
-	})
-}
-
-func (c *BruteChord[T]) sendCheckAlive() {
-	c.logger.WriteToFileOK("Calling sendCheckAlive Method")
-	c.logger.WriteToFileOK("Sending AreYouAliveNotification to %v", c.GetSuccessor())
-	c.ClientChordCommunication.sendRequest(ClientTask[T]{
-		Targets: []T{c.GetSuccessor(), c.successorSuccessor.Contact},
-		Data:    AreYouAliveNotification[T]{Contact: c.GetContact()},
-	})
-}
-
-func (c *BruteChord[T]) killDead() {
-	c.logger.WriteToFileOK("Calling killDead Method at time %v", time.Now())
-	successor := c.GetSuccessor()
-	if !c.Monitor.CheckAlive(successor, 3*WaitingTime) {
-		c.logger.WriteToFileOK("Successor %v is Dead", successor)
-		c.DeadContacts = append(c.DeadContacts, successor)
-		c.Monitor.DeleteContact(successor)
-		c.SetSuccessor(c.DefaultSuccessor())
-	} else {
-		c.logger.WriteToFileOK("Successor %v is Alive", successor)
-	}
-	successorSuccessor := c.GetSuccessorSuccessor()
-	if !c.Monitor.CheckAlive(successorSuccessor, 3*WaitingTime) {
-		c.logger.WriteToFileOK("My Successor Successor %v looks Dead to me", successorSuccessor)
-		c.DeadContacts = append(c.DeadContacts, successorSuccessor)
-		c.Monitor.DeleteContact(successorSuccessor)
-		c.SetSuccessorSuccessor(c.GetSuccessor())
-	}
-}
-
-func (c *BruteChord[T]) StopWorking() {
-	c.NotificationChannelServerNode <- nil
 }

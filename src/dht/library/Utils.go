@@ -2,15 +2,19 @@ package library
 
 import (
 	"fmt"
-	rand2 "math/rand/v2"
+	"math/rand/v2"
 )
 
 var usedId = map[ChordHash]bool{}
 
+func generateTaskId() int64 {
+	return rand.Int64()
+}
+
 func GenerateRandomBinaryId() ChordHash {
 	var result ChordHash
 	for {
-		result = rand2.Int64() % (1 << NumberBits)
+		result = rand.Int64() % (1 << NumberBits)
 		if _, exist := usedId[result]; !exist {
 			usedId[result] = true
 			break

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const NumberNodes = 30
+const NumberNodes = 2
 const NumberOfRuns = 2
 
 func Sort(ids []ChordHash) {
