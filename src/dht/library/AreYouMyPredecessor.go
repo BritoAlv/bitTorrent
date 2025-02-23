@@ -22,53 +22,7 @@ func (i ImYourPredecessor[contact]) HandleNotification(b *BruteChord[contact]) {
 	b.ReplicateData(2, myPredecessorPredecessor)
 }
 
-type ReceiveDataReplicate[contact Contact] struct {
-	DataOwner      contact
-	SuccessorIndex int   // The sender of this is my SuccessorIndex successor, my first successor, or my second successor.
-	TaskId         int64 // The ID of the task so that it can be confirmed.
-	Data           Store
-}
 
-type ConfirmReplication[contact Contact] struct {
-	TaskId int64
-}
-
-func (c ConfirmReplication[contact]) HandleNotification(b *BruteChord[contact]) {
-	b.logger.WriteToFileOK("Handling ConfirmReplication with TaskId %v", c.TaskId)
-	b.logger.WriteToFileOK("I will now delete the data from my local storage")
-	b.SetPendingResponse(c.TaskId, Confirmations{Confirmation: true, Value: nil})
-}
-
-func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]) {
-	b.logger.WriteToFileOK("Handling ReceiveDataReplicate from %v, supposed to be my %v successor, taskId  %v", r.DataOwner.getNodeId(), r.SuccessorIndex, r.TaskId)
-	if r.SuccessorIndex == 1 {
-		bSuccessor := b.GetSuccessor()
-		if bSuccessor.getNodeId() == r.DataOwner.getNodeId() {
-			b.logger.WriteToFileOK("I am the first successor of %v", r.DataOwner.getNodeId())
-			b.logger.WriteToFileOK("I will now store the data")
-			b.ReplaceSuccessorData(r.Data)
-			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
-				Targets: []contact{r.DataOwner},
-				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
-			})
-		} else {
-			b.logger.WriteToFileOK("I am not the first successor of %v", r.DataOwner.getNodeId())
-		}
-	} else if r.SuccessorIndex == 2 {
-		bSuccessorSuccessor := b.GetSuccessorSuccessor()
-		if bSuccessorSuccessor.getNodeId() == r.DataOwner.getNodeId() {
-			b.logger.WriteToFileOK("I am the second successor of %v", r.DataOwner.getNodeId())
-			b.logger.WriteToFileOK("I will now store the data")
-			b.ReplaceSuccessorSuccessorData(r.Data)
-			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
-				Targets: []contact{r.DataOwner},
-				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
-			})
-		} else {
-			b.logger.WriteToFileOK("I am not the second successor of %v", r.DataOwner.getNodeId())
-		}
-	}
-}
 
 func (a AreYouMyPredecessor[contact]) HandleNotification(b *BruteChord[contact]) {
 	// update my settings only if needed.
@@ -88,14 +42,15 @@ func (a AreYouMyPredecessor[contact]) HandleNotification(b *BruteChord[contact])
 			b.SetSuccessorSuccessor(a.MySuccessor)
 			b.logger.WriteToFileOK("I am now the predecessor of %v,  so I will tell him that Im its predecessor and my predecessor is %v", a.Contact.getNodeId(), b.GetPredecessor().getNodeId())
 			b.logger.WriteToFileOK("My successor is now %v and my second successor is %v", b.GetSuccessor().getNodeId(), b.GetSuccessorSuccessor().getNodeId())
-			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
-				Targets: []contact{a.Contact},
-				Data: ImYourPredecessor[contact]{
-					MyContact:     b.GetContact(),
-					MyPredecessor: b.GetPredecessor(),
-				},
-			})
 		}
+		// Confirm in any case it is its predecessor.
+		b.ClientChordCommunication.sendRequest(ClientTask[contact]{
+			Targets: []contact{a.Contact},
+			Data: ImYourPredecessor[contact]{
+				MyContact:     b.GetContact(),
+				MyPredecessor: b.GetPredecessor(),
+			},
+		})
 	} else {
 		b.logger.WriteToFileOK("I am not the predecessor of %v", a.Contact.getNodeId())
 	}

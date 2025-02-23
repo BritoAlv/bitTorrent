@@ -1,6 +1,8 @@
 package library
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -123,4 +125,24 @@ func (c *BruteChord[T]) killDead() {
 
 func (c *BruteChord[T]) StopWorking() {
 	c.NotificationChannelServerNode <- nil
+}
+
+func (c *BruteChord[T]) State() string {
+	state := "Node: " + strconv.Itoa(int(c.GetId())) + "\n"
+	state += "Successor: " + strconv.Itoa(int(c.GetSuccessor().getNodeId())) + "\n"
+	state += "Successor Data Replicas Are: " + "\n"
+	for key, value := range c.GetSuccessorReplicatedData() {
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
+	}
+	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetSuccessorSuccessor().getNodeId())) + "\n"
+	state += "SuccessorSuccessor Data Replica:" + "\n"
+	for key, value := range c.GetSuccessorSuccessorReplicatedData() {
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
+	}
+	state += "Predecessor: " + strconv.Itoa(int(c.GetPredecessor().getNodeId())) + "\n"
+	state += "Data stored:\n"
+	for key, value := range c.GetAllOwnData() {
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
+	}
+	return state
 }

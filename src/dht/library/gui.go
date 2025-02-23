@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/container"
 	"fyne.io/fyne/widget"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -100,21 +99,5 @@ func (g *GUI) PrepareState() map[int]string {
 }
 
 func (g *GUI) ShowNodeState(node *BruteChord[InMemoryContact]) string {
-	state := "Node: " + strconv.Itoa(int(node.GetId())) + "\n"
-	state += "Successor: " + strconv.Itoa(int(node.GetSuccessor().getNodeId())) + "\n"
-	state += "Successor Data Replicas Are: " + "\n"
-	for key, value := range node.GetSuccessorReplicatedData() {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
-	}
-	state += "SuccessorSuccessor: " + strconv.Itoa(int(node.GetSuccessorSuccessor().getNodeId())) + "\n"
-	state += "SuccessorSuccessor Data Replica:" + "\n"
-	for key, value := range node.GetSuccessorSuccessorReplicatedData() {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
-	}
-	state += "Predecessor: " + strconv.Itoa(int(node.GetPredecessor().getNodeId())) + "\n"
-	state += "Data stored:\n"
-	for key, value := range node.GetAllOwnData() {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
-	}
-	return state
+	return node.State()
 }
