@@ -96,7 +96,7 @@ func (c *BruteChord[T]) sendCheckAlive() {
 	c.logger.WriteToFileOK("Calling sendCheckAlive Method")
 	c.logger.WriteToFileOK("Sending AreYouAliveNotification to %v", c.GetSuccessor())
 	c.ClientChordCommunication.sendRequest(ClientTask[T]{
-		Targets: []T{c.GetSuccessor(), c.successorSuccessor.Contact},
+		Targets: []T{c.GetSuccessor(), c.GetSuccessorSuccessor()},
 		Data:    AreYouAliveNotification[T]{Contact: c.GetContact()},
 	})
 }

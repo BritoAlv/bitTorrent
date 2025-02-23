@@ -38,8 +38,8 @@ func StartUp(name string) (*DataBaseInMemory, *sync.WaitGroup) {
 		var monitor = NewMonitorHand[InMemoryContact]("Monitor" + randomIdStr)
 		node := NewBruteChord[InMemoryContact](server, client, monitor, randomId)
 		database.AddNode(node, server, client)
+		barrier.Add(1)
 		go func() {
-			barrier.Add(1)
 			node.BeginWorking()
 			barrier.Done()
 		}()
@@ -116,8 +116,8 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		}
 	}
 	for _, node := range down {
+		barrier.Add(1)
 		go func() {
-			barrier.Add(1)
 			node.BeginWorking()
 			barrier.Done()
 		}()
@@ -138,9 +138,4 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		node.StopWorking()
 	}
 	barrier.Wait()
-}
-
-// Do Some Put operations and check that the Data is inserted where it should be.
-func TestBasicChordPut(t *testing.T) {
-
 }

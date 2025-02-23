@@ -22,8 +22,8 @@ func StartGUI(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
 	// Set the grid layout as content
 	w.SetContent(&scrollContainer)
 	// Run state updates in a separate goroutine
+	barrier.Add(1)
 	go func() {
-		barrier.Add(1)
 		gui.UpdateState()
 		barrier.Done()
 	}()
@@ -65,8 +65,8 @@ func ScenarioBasico() (*library.DataBaseInMemory, *sync.WaitGroup) {
 	var database = *library.NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
 	fmt.Println("Nodes are being added and removed randomly every once a while")
+	barrier.Add(1)
 	go func() {
-		barrier.Add(1)
 		defer barrier.Done()
 		for {
 			time.Sleep(5 * time.Second)
