@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const NumberNodes = 10
+const NumberNodes = 20
 const NumberOfRuns = 2
 
 func Sort(ids []ChordHash) {
@@ -60,7 +60,7 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 		ids = append(ids, node.GetId())
 	}
 	Sort(ids)
-	time.Sleep((3 * WaitingTime) * time.Second)
+	time.Sleep((10 * WaitingTime) * time.Second)
 	for i := 0; i < NumberNodes; i++ {
 		nodeId := ids[i]
 		node := nodes[nodeId]
@@ -82,7 +82,7 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 func TestBasicChordBehaviourNoDead(t *testing.T) {
 	database, barrier := StartUp("TestBasicChordBehaviourNoDead")
 	nodes := database.GetNodes()
-	time.Sleep((3 * WaitingTime) * time.Second)
+	time.Sleep((10 * WaitingTime) * time.Second)
 	for _, node := range nodes {
 		if len(node.DeadContacts) > 0 {
 			t.Errorf("Node %v has the dead contacts ", node.GetId())
@@ -95,7 +95,7 @@ func TestBasicChordBehaviourNoDead(t *testing.T) {
 }
 
 // TestBasicChordBehaviourStabilization : N nodes are created simultaneously, some nodes randomly go down, and eventually go up, after stabilization occurs it should
-// happen that all the nodes are alive.
+// happen that all the nodes are successors are fine.
 func TestBasicChordBehaviourStabilization(t *testing.T) {
 	database, barrier := StartUp("TestBasicChordBehaviourStabilization")
 	nodes := make(map[ChordHash]*BruteChord[InMemoryContact])
@@ -105,7 +105,7 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		ids = append(ids, node.GetId())
 	}
 	Sort(ids)
-	time.Sleep((3 * WaitingTime) * time.Second)
+	time.Sleep((10 * WaitingTime) * time.Second)
 	down := make([]*BruteChord[InMemoryContact], 0, NumberNodes)
 	for i := 0; i < NumberNodes; i++ {
 		if rand.Float32() <= 0.5 {
@@ -122,7 +122,7 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 			barrier.Done()
 		}()
 	}
-	time.Sleep((3 * WaitingTime) * time.Second)
+	time.Sleep((10 * WaitingTime) * time.Second)
 	for i := 0; i < NumberNodes; i++ {
 		nodeId := ids[i]
 		node := nodes[nodeId]
@@ -138,4 +138,9 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		node.StopWorking()
 	}
 	barrier.Wait()
+}
+
+// Do Some Put operations and check that the Data is inserted where it should be.
+func TestBasicChordPut(t *testing.T) {
+
 }

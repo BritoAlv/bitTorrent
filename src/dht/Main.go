@@ -31,43 +31,37 @@ func StartGUI(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
 }
 
 func AddNode(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
-	time.Sleep(1 * time.Second)
-	if rand.Float32() <= 0.5 {
-		randomId := library.GenerateRandomBinaryId()
-		fmt.Println("Adding Node ", randomId)
-		iString := strconv.Itoa(int(randomId))
-		var server = library.NewServerInMemory(database, "Server"+iString)
-		var client = library.NewClientInMemory(database, "Client"+iString)
-		var monitor = library.NewMonitorHand[library.InMemoryContact]("Monitor" + iString)
-		node := library.NewBruteChord[library.InMemoryContact](server, client, monitor, randomId)
-		database.AddNode(node, server, client)
-		barrier.Add(1)
-		go func() {
-			node.BeginWorking()
-			defer barrier.Done()
-		}()
-	}
+	randomId := library.GenerateRandomBinaryId()
+	fmt.Println("Adding Node ", randomId)
+	iString := strconv.Itoa(int(randomId))
+	var server = library.NewServerInMemory(database, "Server"+iString)
+	var client = library.NewClientInMemory(database, "Client"+iString)
+	var monitor = library.NewMonitorHand[library.InMemoryContact]("Monitor" + iString)
+	node := library.NewBruteChord[library.InMemoryContact](server, client, monitor, randomId)
+	database.AddNode(node, server, client)
+	barrier.Add(1)
+	go func() {
+		node.BeginWorking()
+		defer barrier.Done()
+	}()
 }
 
 func RemoveNode(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
-	time.Sleep(1 * time.Second)
-	if rand.Float32() <= 0.1 {
-		if len(database.GetNodes()) > 0 {
-			for _, node := range database.GetNodes() {
-				barrier.Add(1)
-				go func() {
-					fmt.Println("Removing Node with ID = ", node.GetId())
-					database.RemoveNode(node)
-					defer barrier.Done()
-				}()
-				break
-			}
+	if len(database.GetNodes()) > 0 {
+		for _, node := range database.GetNodes() {
+			barrier.Add(1)
+			go func() {
+				fmt.Println("Removing Node with ID = ", node.GetId())
+				database.RemoveNode(node)
+				defer barrier.Done()
+			}()
+			break
 		}
 	}
 }
 
-func main() {
-	library.SetLogDirectoryPath("Main")
+func ScenarioBasico() (*library.DataBaseInMemory, *sync.WaitGroup) {
+	library.SetLogDirectoryPath("Basic Scenario")
 	var database = *library.NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
 	fmt.Println("Nodes are being added and removed randomly every once a while")
@@ -75,9 +69,41 @@ func main() {
 		barrier.Add(1)
 		defer barrier.Done()
 		for {
-			AddNode(&database, &barrier)
-			RemoveNode(&database, &barrier)
+			time.Sleep(1 * time.Second)
+			if rand.Float32() <= 0.3 {
+				AddNode(&database, &barrier)
+			}
+			if rand.Float32() <= 0.1 {
+				RemoveNode(&database, &barrier)
+			}
 		}
 	}()
-	StartGUI(&database, &barrier)
+	return &database, &barrier
+}
+
+func PutScenario() (*library.DataBaseInMemory, *sync.WaitGroup) {
+	N := 3
+	library.SetLogDirectoryPath("PutScenario")
+	var database = *library.NewDataBaseInMemory()
+	var barrier = sync.WaitGroup{}
+	var toPut = make(map[library.ChordHash][]byte)
+	fmt.Printf("Going to Add N = %v  Nodes", N)
+	for i := 0; i < N; i++ {
+		AddNode(&database, &barrier)
+	}
+	toPut[123] = []byte{1, 2, 3}
+	toPut[143] = []byte{1, 4, 3}
+
+	time.Sleep(3 * time.Second)
+	nodes := database.GetNodes()
+	println(len(nodes))
+	for key, value := range toPut {
+		nodes[0].Put(key, value)
+	}
+	return &database, &barrier
+}
+
+func main() {
+	database, barrier := PutScenario()
+	StartGUI(database, barrier)
 }
