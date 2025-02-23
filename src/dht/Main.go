@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/container"
+	"math/rand"
 	"strconv"
 	"sync"
+	"time"
 )
 
 func StartGUI(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
@@ -25,20 +27,19 @@ func StartGUI(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
 		gui.UpdateState()
 		barrier.Done()
 	}()
-
 	w.ShowAndRun()
 }
 
-func main() {
-	library.SetLogDirectoryPath("Main")
-	var database = *library.NewDataBaseInMemory()
-	var barrier = sync.WaitGroup{}
-	N := 35
-	for i := 0; i < N; i++ {
-		iString := strconv.Itoa(i)
-		var server = library.NewServerInMemory(&database, "Server"+iString)
-		var client = library.NewClientInMemory(&database, "Client"+iString)
-		node := library.NewBruteChord[library.InMemoryContact](server, client, library.NewMonitorHand[library.InMemoryContact]("Monitor"+iString))
+func AddNode(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
+	time.Sleep(1 * time.Second)
+	if rand.Float32() <= 0.5 {
+		randomId := library.GenerateRandomBinaryId()
+		fmt.Println("Adding Node ", randomId)
+		iString := strconv.Itoa(int(randomId))
+		var server = library.NewServerInMemory(database, "Server"+iString)
+		var client = library.NewClientInMemory(database, "Client"+iString)
+		var monitor = library.NewMonitorHand[library.InMemoryContact]("Monitor" + iString)
+		node := library.NewBruteChord[library.InMemoryContact](server, client, monitor, randomId)
 		database.AddNode(node, server, client)
 		barrier.Add(1)
 		go func() {
@@ -46,6 +47,37 @@ func main() {
 			defer barrier.Done()
 		}()
 	}
-	fmt.Println("All nodes are started")
+}
+
+func RemoveNode(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
+	time.Sleep(1 * time.Second)
+	if rand.Float32() <= 0.1 {
+		if len(database.GetNodes()) > 0 {
+			for _, node := range database.GetNodes() {
+				barrier.Add(1)
+				go func() {
+					fmt.Println("Removing Node with ID = ", node.GetId())
+					database.RemoveNode(node)
+					defer barrier.Done()
+				}()
+				break
+			}
+		}
+	}
+}
+
+func main() {
+	library.SetLogDirectoryPath("Main")
+	var database = *library.NewDataBaseInMemory()
+	var barrier = sync.WaitGroup{}
+	fmt.Println("Nodes are being added and removed randomly every once a while")
+	go func() {
+		barrier.Add(1)
+		defer barrier.Done()
+		for {
+			AddNode(&database, &barrier)
+			RemoveNode(&database, &barrier)
+		}
+	}()
 	StartGUI(&database, &barrier)
 }

@@ -56,6 +56,14 @@ func (db *DataBaseInMemory) GetNodes() []*BruteChord[InMemoryContact] {
 	return nodes
 }
 
+func (db *DataBaseInMemory) RemoveNode(node *BruteChord[InMemoryContact]) {
+	db.lock.Lock()
+	db.logger.WriteToFileOK("Removing node %v from database", node.GetId())
+	node.StopWorking()
+	delete(db.dict, node.id)
+	db.lock.Unlock()
+}
+
 type InMemoryContact struct {
 	Id     string
 	NodeId ChordHash

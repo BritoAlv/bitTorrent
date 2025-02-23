@@ -33,9 +33,9 @@ type BruteChord[T Contact] struct {
 	PendingResponses              map[int64]Confirmations // I need to check if someone answered the request I sent.
 }
 
-func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCommunication Client[T], monitor Monitor[T]) *BruteChord[T] {
+func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCommunication Client[T], monitor Monitor[T], id ChordHash) *BruteChord[T] {
 	var node = BruteChord[T]{}
-	node.id = GenerateRandomBinaryId()
+	node.id = id
 	node.lock = sync.Mutex{}
 	node.DeadContacts = make([]T, 0)
 	node.logger = *common.NewLogger(ToString(node.id) + ".txt")
