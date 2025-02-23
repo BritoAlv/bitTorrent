@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const NumberNodes = 2
+const NumberNodes = 10
 const NumberOfRuns = 2
 
 func Sort(ids []ChordHash) {
@@ -26,30 +26,38 @@ func TestRunMultipleTimes(t *testing.T) {
 	}
 }
 
-/*
-TestBasicChordBehaviourInitialization : N nodes are created simultaneously, eventually after stabilization occurs all the
-nodes should have as its successor the next one in the ring.
-*/
-func TestBasicChordBehaviourInitialization(t *testing.T) {
-	SetLogDirectoryPath("TestBasicChordBehaviourInitialization")
+func StartUp(name string) (*DataBaseInMemory, *sync.WaitGroup) {
+	SetLogDirectoryPath(name)
 	var database = *NewDataBaseInMemory()
-	var ids = make([]ChordHash, 0, NumberNodes)
-	var nodes = make(map[ChordHash]*BruteChord[InMemoryContact])
 	var barrier = sync.WaitGroup{}
 	for i := 0; i < NumberNodes; i++ {
-		iString := strconv.Itoa(i)
-		var server = NewServerInMemory(&database, "Server"+iString)
-		var client = NewClientInMemory(&database, "Client"+iString)
-		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
+		randomId := GenerateRandomBinaryId()
+		randomIdStr := strconv.Itoa(int(randomId))
+		var server = NewServerInMemory(&database, "Server"+randomIdStr)
+		var client = NewClientInMemory(&database, "Client"+randomIdStr)
+		var monitor = NewMonitorHand[InMemoryContact]("Monitor" + randomIdStr)
+		node := NewBruteChord[InMemoryContact](server, client, monitor, randomId)
 		database.AddNode(node, server, client)
-		intNodeId := node.GetId()
-		nodes[intNodeId] = node
-		ids = append(ids, node.GetId())
 		go func() {
 			barrier.Add(1)
 			node.BeginWorking()
 			barrier.Done()
 		}()
+	}
+	return &database, &barrier
+}
+
+/*
+TestBasicChordBehaviourInitialization : N nodes are created simultaneously, eventually after stabilization occurs all the
+nodes should have as its successor the next one in the ring.
+*/
+func TestBasicChordBehaviourInitialization(t *testing.T) {
+	database, barrier := StartUp("TestBasicChordBehaviourInitialization")
+	nodes := make(map[ChordHash]*BruteChord[InMemoryContact])
+	ids := make([]ChordHash, 0)
+	for _, node := range database.GetNodes() {
+		nodes[node.GetId()] = node
+		ids = append(ids, node.GetId())
 	}
 	Sort(ids)
 	time.Sleep((3 * WaitingTime) * time.Second)
@@ -72,24 +80,8 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 
 // TestBasicChordBehaviourNoDead : N nodes are created simultaneously, at any moment all nodes are active, so there should be no dead nodes.
 func TestBasicChordBehaviourNoDead(t *testing.T) {
-	SetLogDirectoryPath("TestBasicChordBehaviourNoDead")
-	var database = *NewDataBaseInMemory()
-	var nodes = make(map[ChordHash]*BruteChord[InMemoryContact])
-	var barrier = sync.WaitGroup{}
-	for i := 0; i < NumberNodes; i++ {
-		iString := strconv.Itoa(i)
-		var server = NewServerInMemory(&database, "Server"+iString)
-		var client = NewClientInMemory(&database, "Client"+iString)
-		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
-		database.AddNode(node, server, client)
-		intNodeId := node.GetId()
-		nodes[intNodeId] = node
-		go func() {
-			barrier.Add(1)
-			node.BeginWorking()
-			barrier.Done()
-		}()
-	}
+	database, barrier := StartUp("TestBasicChordBehaviourNoDead")
+	nodes := database.GetNodes()
 	time.Sleep((3 * WaitingTime) * time.Second)
 	for _, node := range nodes {
 		if len(node.DeadContacts) > 0 {
@@ -105,25 +97,12 @@ func TestBasicChordBehaviourNoDead(t *testing.T) {
 // TestBasicChordBehaviourStabilization : N nodes are created simultaneously, some nodes randomly go down, and eventually go up, after stabilization occurs it should
 // happen that all the nodes are alive.
 func TestBasicChordBehaviourStabilization(t *testing.T) {
-	SetLogDirectoryPath("TestBasicChordBehaviourStabilization")
-	var database = *NewDataBaseInMemory()
-	var ids = make([]ChordHash, 0, NumberNodes)
-	var nodes = make(map[ChordHash]*BruteChord[InMemoryContact])
-	var barrier = sync.WaitGroup{}
-	for i := 0; i < NumberNodes; i++ {
-		iString := strconv.Itoa(i)
-		var server = NewServerInMemory(&database, "Server"+iString)
-		var client = NewClientInMemory(&database, "Client"+iString)
-		node := NewBruteChord[InMemoryContact](server, client, NewMonitorHand[InMemoryContact]("Monitor"+iString))
-		database.AddNode(node, server, client)
-		intNodeId := node.GetId()
-		nodes[intNodeId] = node
+	database, barrier := StartUp("TestBasicChordBehaviourStabilization")
+	nodes := make(map[ChordHash]*BruteChord[InMemoryContact])
+	ids := make([]ChordHash, 0)
+	for _, node := range database.GetNodes() {
+		nodes[node.GetId()] = node
 		ids = append(ids, node.GetId())
-		go func() {
-			barrier.Add(1)
-			node.BeginWorking()
-			barrier.Done()
-		}()
 	}
 	Sort(ids)
 	time.Sleep((3 * WaitingTime) * time.Second)
