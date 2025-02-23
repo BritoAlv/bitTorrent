@@ -1,6 +1,8 @@
 package library
 
-import "time"
+import (
+	"time"
+)
 
 type AreYouAliveNotification[contact Contact] struct {
 	Contact contact

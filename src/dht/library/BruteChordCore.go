@@ -29,8 +29,8 @@ type BruteChord[T Contact] struct {
 	ClientChordCommunication      Client[T]               // A Client that will send notifications to others nodes of type T.
 	logger                        common.Logger           // To Log Everything The Node is doing.
 	DeadContacts                  []T                     // This is only for testing purposes.
-	MyData                        Store                   // My Data That I'm actually Responsible for.
-	PendingResponses              map[int64]Confirmations // I need to check if someone answered the request I sent.
+	myData                        Store                   // My Data That I'm actually Responsible for.
+	pendingResponses              map[int64]Confirmations // I need to check if someone answered the request I sent.
 }
 
 func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCommunication Client[T], monitor Monitor[T], id ChordHash) *BruteChord[T] {
@@ -49,8 +49,8 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.SetSuccessor(node.DefaultSuccessor())
 	node.SetSuccessorSuccessor(node.DefaultSuccessor())
 	node.SetPredecessor(node.DefaultSuccessor())
-	node.PendingResponses = make(map[int64]Confirmations)
-	node.MyData = make(Store)
+	node.pendingResponses = make(map[int64]Confirmations)
+	node.myData = make(Store)
 	return &node
 }
 
@@ -60,14 +60,14 @@ func (c *BruteChord[T]) GetId() ChordHash {
 
 func (c *BruteChord[T]) GetData(key ChordHash) []byte {
 	c.lock.Lock()
-	data := c.MyData[key]
+	data := c.myData[key]
 	c.lock.Unlock()
 	return data
 }
 
 func (c *BruteChord[T]) GetAllOwnData() Store {
 	c.lock.Lock()
-	data := c.MyData // this is a copy or a reference ?
+	data := c.myData // this is a copy or a reference ?
 	c.lock.Unlock()
 	return data
 }
@@ -88,13 +88,7 @@ func (c *BruteChord[T]) GetSuccessorSuccessorReplicatedData() Store {
 
 func (c *BruteChord[T]) SetData(key ChordHash, value []byte) {
 	c.lock.Lock()
-	c.MyData[key] = value
-	c.lock.Unlock()
-}
-
-func (c *BruteChord[T]) ReplaceStore(placeHolder *Store, data Store) {
-	c.lock.Lock()
-	*placeHolder = data
+	c.myData[key] = value
 	c.lock.Unlock()
 }
 
@@ -108,30 +102,51 @@ func (c *BruteChord[T]) GetSuccessor() T {
 
 func (c *BruteChord[T]) SetPendingResponse(taskId int64, confirmation Confirmations) {
 	c.lock.Lock()
-	c.PendingResponses[taskId] = confirmation
+	c.pendingResponses[taskId] = confirmation
+	c.lock.Unlock()
+}
+
+func (c *BruteChord[T]) ReplaceSuccessorData(data Store) {
+	c.lock.Lock()
+	c.successor.Data = data
+	c.lock.Unlock()
+}
+
+func (c *BruteChord[T]) ReplaceSuccessorSuccessorData(data Store) {
+	c.lock.Lock()
+	c.successorSuccessor.Data = data
 	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) GetPendingResponse(taskId int64) Confirmations {
 	c.lock.Lock()
-	confirmation, _ := c.PendingResponses[taskId]
+	confirmation, _ := c.pendingResponses[taskId]
 	c.lock.Unlock()
 	return confirmation
 }
 
-func (c *BruteChord[T]) releaseReplicas(placeHolder *Store) {
+func (c *BruteChord[T]) releaseSuccessorReplica() {
 	c.lock.Lock()
-	for key, data := range *placeHolder {
-		c.MyData[key] = data
-		delete(*placeHolder, key)
+	for key, data := range c.successor.Data {
+		c.myData[key] = data
 	}
+	c.successor.Data = make(Store)
+	c.lock.Unlock()
+}
+
+func (c *BruteChord[T]) releaseSuccessorSuccessorReplica() {
+	c.lock.Lock()
+	for key, data := range c.successorSuccessor.Data {
+		c.myData[key] = data
+	}
+	c.successor.Data = make(Store)
 	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) SetSuccessor(candidate T) {
 	if c.successor.Contact.getNodeId() != candidate.getNodeId() {
 		c.logger.WriteToFileOK("Because I'll have a new successor, I'll have to release the replicas I was holding for that old successor")
-		c.releaseReplicas(&c.successor.Data)
+		c.releaseSuccessorReplica()
 	}
 	c.lock.Lock()
 	curDate := time.Now()
@@ -156,9 +171,9 @@ func (c *BruteChord[T]) GetPredecessor() T {
 }
 
 func (c *BruteChord[T]) SetSuccessorSuccessor(candidate T) {
-	if c.successorSuccessor.Contact.getNodeId() != candidate.getNodeId() {
+	if c.GetSuccessorSuccessor().getNodeId() != candidate.getNodeId() {
 		c.logger.WriteToFileOK("Because I'll have a new successorSuccessor, I'll have to release the replicas I was holding for that old successorSuccessor")
-		c.releaseReplicas(&c.successorSuccessor.Data)
+		c.releaseSuccessorSuccessorReplica()
 	}
 	c.lock.Lock()
 	curDate := time.Now()

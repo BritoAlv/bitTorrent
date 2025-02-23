@@ -42,10 +42,11 @@ func (c ConfirmReplication[contact]) HandleNotification(b *BruteChord[contact]) 
 func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]) {
 	b.logger.WriteToFileOK("Handling ReceiveDataReplicate from %v, supposed to be my %v successor, taskId  %v", r.DataOwner.getNodeId(), r.SuccessorIndex, r.TaskId)
 	if r.SuccessorIndex == 1 {
-		if b.successor.Contact.getNodeId() == r.DataOwner.getNodeId() {
+		bSuccessor := b.GetSuccessor()
+		if bSuccessor.getNodeId() == r.DataOwner.getNodeId() {
 			b.logger.WriteToFileOK("I am the first successor of %v", r.DataOwner.getNodeId())
 			b.logger.WriteToFileOK("I will now store the data")
-			b.ReplaceStore(&b.successor.Data, r.Data)
+			b.ReplaceSuccessorData(r.Data)
 			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 				Targets: []contact{r.DataOwner},
 				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
@@ -54,10 +55,11 @@ func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]
 			b.logger.WriteToFileOK("I am not the first successor of %v", r.DataOwner.getNodeId())
 		}
 	} else if r.SuccessorIndex == 2 {
-		if b.successorSuccessor.Contact.getNodeId() == r.DataOwner.getNodeId() {
+		bSuccessorSuccessor := b.GetSuccessorSuccessor()
+		if bSuccessorSuccessor.getNodeId() == r.DataOwner.getNodeId() {
 			b.logger.WriteToFileOK("I am the second successor of %v", r.DataOwner.getNodeId())
 			b.logger.WriteToFileOK("I will now store the data")
-			b.ReplaceStore(&b.successorSuccessor.Data, r.Data)
+			b.ReplaceSuccessorSuccessorData(r.Data)
 			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 				Targets: []contact{r.DataOwner},
 				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
@@ -84,7 +86,7 @@ func (a AreYouMyPredecessor[contact]) HandleNotification(b *BruteChord[contact])
 		} else {
 			b.SetSuccessor(a.Contact)
 			b.SetSuccessorSuccessor(a.MySuccessor)
-			b.logger.WriteToFileOK("I am now the predecessor of %v,  so I will tell him that Im its predecessor and my predecessor is %v", a.Contact.getNodeId(), b.predecessorRef.getNodeId())
+			b.logger.WriteToFileOK("I am now the predecessor of %v,  so I will tell him that Im its predecessor and my predecessor is %v", a.Contact.getNodeId(), b.GetPredecessor().getNodeId())
 			b.logger.WriteToFileOK("My successor is now %v and my second successor is %v", b.GetSuccessor().getNodeId(), b.GetSuccessorSuccessor().getNodeId())
 			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 				Targets: []contact{a.Contact},

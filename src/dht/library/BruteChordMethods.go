@@ -1,6 +1,8 @@
 package library
 
-import "time"
+import (
+	"time"
+)
 
 func (c *BruteChord[T]) SendRequestUntilConfirmation(clientTask ClientTask[T], taskId int64) {
 	c.logger.WriteToFileOK("Calling SendRequestUntilConfirmation Method with request %v and taskId %v", clientTask, taskId)
@@ -70,12 +72,13 @@ func (c *BruteChord[T]) StabilizeStore() {
 	curDate := time.Now()
 	c.lock.Lock()
 	c.logger.WriteToFileOK("Stabilizing Store at time %v", curDate)
-	for key, data := range c.MyData {
-		c.logger.WriteToFileOK("Calling Put on key %v", key)
-		dataCopy := data
-		go c.Put(key, dataCopy)
-		delete(c.MyData, key)
-		c.logger.WriteToFileOK("Deleted key %v from Store", key)
+	ownStore := make(map[ChordHash][]byte)
+	for key, data := range c.myData {
+		ownStore[key] = data
+	}
+	c.myData = make(map[ChordHash][]byte)
+	for key, data := range ownStore {
+		go c.Put(key, data)
 	}
 	c.lock.Unlock()
 }

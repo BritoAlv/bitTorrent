@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"os"
+	"sync"
 )
 
 var LogsPath = "./logs/"
@@ -11,6 +12,7 @@ type Logger struct {
 	DefaultPath string
 	FileName    string
 	Prefix      string
+	lock        sync.Mutex
 }
 
 func NewLogger(fileID string) *Logger {
@@ -24,6 +26,7 @@ func NewLogger(fileID string) *Logger {
 		DefaultPath: defaultPath,
 		FileName:    fileID,
 		Prefix:      "",
+		lock:        sync.Mutex{},
 	}
 }
 
@@ -38,12 +41,13 @@ func (l *Logger) WriteToFileError(format string, args ...interface{}) {
 
 func (l *Logger) WriteToFileOK(format string, args ...interface{}) {
 	content := fmt.Sprintf(format, args...)
+	l.lock.Lock()
+	defer l.lock.Unlock()
 	file, err := os.OpenFile(l.DefaultPath+l.FileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
 	_, err = file.WriteString(content + "\n")
-	fmt.Println(content)
 	if err != nil {
 		panic(err)
 	}
