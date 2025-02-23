@@ -58,89 +58,104 @@ func (c *BruteChord[T]) GetId() ChordHash {
 	return c.id
 }
 
+func (c *BruteChord[T]) copyValue(value []byte) []byte {
+	data := make([]byte, len(value), len(value))
+	copy(data, value)
+	return data
+}
+
+func (c *BruteChord[T]) copyStore(store Store) Store {
+	data := make(map[ChordHash][]byte)
+	for key, value := range store {
+		data[key] = make([]byte, len(value), len(value))
+		copy(data[key], value)
+	}
+	return data
+}
+
 func (c *BruteChord[T]) GetData(key ChordHash) []byte {
 	c.lock.Lock()
-	data := c.myData[key]
-	c.lock.Unlock()
+	defer c.lock.Unlock()
+	data := c.copyValue(c.myData[key])
 	return data
 }
 
 func (c *BruteChord[T]) GetAllOwnData() Store {
 	c.lock.Lock()
-	data := c.myData // this is a copy or a reference ?
-	c.lock.Unlock()
+	defer c.lock.Unlock()
+	data := c.copyStore(c.myData)
 	return data
 }
 
 func (c *BruteChord[T]) GetSuccessorReplicatedData() Store {
 	c.lock.Lock()
-	data := c.successor.Data
-	c.lock.Unlock()
+	defer c.lock.Unlock()
+	data := c.copyStore(c.successor.Data)
 	return data
 }
 
 func (c *BruteChord[T]) GetSuccessorSuccessorReplicatedData() Store {
 	c.lock.Lock()
-	data := c.successorSuccessor.Data
-	c.lock.Unlock()
+	defer c.lock.Unlock()
+	data := c.copyStore(c.successorSuccessor.Data)
 	return data
 }
 
 func (c *BruteChord[T]) SetData(key ChordHash, value []byte) {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.myData[key] = value
-	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) GetSuccessor() T {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.logger.WriteToFileOK("Calling GetSuccessor Method, returning %v", c.successor)
 	successor := c.successor.Contact
-	c.lock.Unlock()
 	return successor
 }
 
 func (c *BruteChord[T]) SetPendingResponse(taskId int64, confirmation Confirmations) {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.pendingResponses[taskId] = confirmation
-	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) ReplaceSuccessorData(data Store) {
 	c.lock.Lock()
-	c.successor.Data = data
-	c.lock.Unlock()
+	defer c.lock.Unlock()
+	c.successor.Data = c.copyStore(data)
 }
 
 func (c *BruteChord[T]) ReplaceSuccessorSuccessorData(data Store) {
 	c.lock.Lock()
-	c.successorSuccessor.Data = data
-	c.lock.Unlock()
+	defer c.lock.Unlock()
+	c.successorSuccessor.Data = c.copyStore(data)
 }
 
 func (c *BruteChord[T]) GetPendingResponse(taskId int64) Confirmations {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	confirmation, _ := c.pendingResponses[taskId]
-	c.lock.Unlock()
 	return confirmation
 }
 
 func (c *BruteChord[T]) releaseSuccessorReplica() {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	for key, data := range c.successor.Data {
 		c.myData[key] = data
 	}
 	c.successor.Data = make(Store)
-	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) releaseSuccessorSuccessorReplica() {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	for key, data := range c.successorSuccessor.Data {
 		c.myData[key] = data
 	}
 	c.successor.Data = make(Store)
-	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) SetSuccessor(candidate T) {
@@ -149,24 +164,24 @@ func (c *BruteChord[T]) SetSuccessor(candidate T) {
 		c.releaseSuccessorReplica()
 	}
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	curDate := time.Now()
 	c.Monitor.AddContact(candidate, curDate)
 	c.logger.WriteToFileOK("Calling SetSuccessor Method, setting %v at date %v", candidate, curDate)
 	c.successor = ContactWithData[T]{Contact: candidate, Data: make(Store)}
-	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) GetSuccessorSuccessor() T {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	successorSuccessor := c.successorSuccessor.Contact
-	c.lock.Unlock()
 	return successorSuccessor
 }
 
 func (c *BruteChord[T]) GetPredecessor() T {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	pred := c.predecessorRef
-	c.lock.Unlock()
 	return pred
 }
 
@@ -176,20 +191,20 @@ func (c *BruteChord[T]) SetSuccessorSuccessor(candidate T) {
 		c.releaseSuccessorSuccessorReplica()
 	}
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	curDate := time.Now()
 	c.Monitor.AddContact(candidate, curDate)
 	c.logger.WriteToFileOK("Calling SetSuccessorSuccessor Method, setting %v at date %v", candidate, curDate)
 	c.successorSuccessor = ContactWithData[T]{Contact: candidate, Data: make(Store)}
-	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) SetPredecessor(candidate T) {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	curDate := time.Now()
 	c.Monitor.AddContact(candidate, curDate)
 	c.logger.WriteToFileOK("Calling SetPredecessor Method, setting %v at date %v", candidate, curDate)
 	c.predecessorRef = candidate
-	c.lock.Unlock()
 }
 
 func (c *BruteChord[T]) DefaultSuccessor() T {
