@@ -33,11 +33,9 @@ func (r ReceivedPutRequest[contact]) HandleNotification(b *BruteChord[contact]) 
 func (p PutRequest[contact]) HandleNotification(b *BruteChord[contact]) {
 	// send a Received put request
 	b.logger.WriteToFileOK("Handling PutRequest from %v with PutId = %v", p.QueryHost.getNodeId(), p.PutId)
-	bSuccessor := b.GetSuccessor()
-	between := Between(b.GetId(), p.Key, bSuccessor.getNodeId())
-	if between {
+	if b.Responsible(p.Key) {
 		b.logger.WriteToFileOK("Sending ReceivedPutRequest to %v with PutId = %v", p.QueryHost.getNodeId(), p.PutId)
-		b.SetData(p.Key, p.Value)
+		b.SetData(p.Key, p.Value, 0)
 		b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 			Targets: []contact{p.QueryHost},
 			Data: ReceivedPutRequest[contact]{
@@ -47,7 +45,7 @@ func (p PutRequest[contact]) HandleNotification(b *BruteChord[contact]) {
 		})
 	} else {
 		clientTask := ClientTask[contact]{
-			Targets: []contact{bSuccessor},
+			Targets: []contact{b.GetContact(1)},
 			Data:    p,
 		}
 		b.ClientChordCommunication.sendRequest(clientTask)

@@ -64,7 +64,7 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 	for i := 0; i < NumberNodes; i++ {
 		nodeId := ids[i]
 		node := nodes[nodeId]
-		successor := node.GetSuccessor()
+		successor := node.GetContact(1)
 		successorId := successor.NodeId
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {
@@ -126,7 +126,7 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 	for i := 0; i < NumberNodes; i++ {
 		nodeId := ids[i]
 		node := nodes[nodeId]
-		successor := node.GetSuccessor()
+		successor := node.GetContact(1)
 		successorId := successor.NodeId
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {

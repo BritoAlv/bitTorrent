@@ -18,9 +18,8 @@ type Confirmations struct {
 }
 
 type BruteChord[T Contact] struct {
-	id                            ChordHash               // Every Node should have an ID.
-	successor                     ContactWithData[T]      // Contact of its successors, hidden because set and get methods will be overloaded.
-	successorSuccessor            ContactWithData[T]      // I need to keep track of this to replicate data in case of network changes.
+	id                            ChordHash // The ID of the Node.
+	Info                          [3]ContactWithData[T]
 	predecessorRef                T                       // Keep Track of the Predecessor, due to replication.
 	lock                          sync.Mutex              // The Pointers shouldn't be updated concurrently.
 	Monitor                       Monitor[T]              // To Keep Track of HeartBeats.
@@ -29,7 +28,6 @@ type BruteChord[T Contact] struct {
 	ClientChordCommunication      Client[T]               // A Client that will send notifications to others nodes of type T.
 	logger                        common.Logger           // To Log Everything The Node is doing.
 	DeadContacts                  []T                     // This is only for testing purposes.
-	myData                        Store                   // My Data That I'm actually Responsible for.
 	pendingResponses              map[int64]Confirmations // I need to check if someone answered the request I sent.
 }
 
@@ -44,13 +42,14 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.ServerChordCommunication.SetData(node.NotificationChannelServerNode, node.id)
 	node.ClientChordCommunication = clientChordCommunication
 	node.Monitor = monitor
-	node.successor.Data = make(Store)
-	node.successorSuccessor.Data = make(Store)
-	node.SetSuccessor(node.DefaultSuccessor())
-	node.SetSuccessorSuccessor(node.DefaultSuccessor())
-	node.SetPredecessor(node.DefaultSuccessor())
 	node.pendingResponses = make(map[int64]Confirmations)
-	node.myData = make(Store)
+	node.SetContact(node.DefaultSuccessor(), -1)
+	node.Info[0].Contact = serverChordCommunication.GetContact()
+	for i := 0; i < 3; i++ {
+		node.Info[i].Data = make(Store)
+	}
+	node.SetContact(node.DefaultSuccessor(), 1)
+	node.SetContact(node.DefaultSuccessor(), 2)
 	return &node
 }
 
@@ -73,46 +72,24 @@ func (c *BruteChord[T]) copyStore(store Store) Store {
 	return data
 }
 
-func (c *BruteChord[T]) GetData(key ChordHash) []byte {
+func (c *BruteChord[T]) GetData(key ChordHash, index int) []byte {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	data := c.copyValue(c.myData[key])
+	data := c.copyValue(c.Info[index].Data[key])
 	return data
 }
 
-func (c *BruteChord[T]) GetAllOwnData() Store {
+func (c *BruteChord[T]) GetAllData(index int) Store {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	data := c.copyStore(c.myData)
+	data := c.copyStore(c.Info[index].Data)
 	return data
 }
 
-func (c *BruteChord[T]) GetSuccessorReplicatedData() Store {
+func (c *BruteChord[T]) SetData(key ChordHash, value []byte, index int) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	data := c.copyStore(c.successor.Data)
-	return data
-}
-
-func (c *BruteChord[T]) GetSuccessorSuccessorReplicatedData() Store {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	data := c.copyStore(c.successorSuccessor.Data)
-	return data
-}
-
-func (c *BruteChord[T]) SetData(key ChordHash, value []byte) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.myData[key] = value
-}
-
-func (c *BruteChord[T]) GetSuccessor() T {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.logger.WriteToFileOK("Calling GetSuccessor Method, returning %v", c.successor)
-	successor := c.successor.Contact
-	return successor
+	c.Info[index].Data[key] = value
 }
 
 func (c *BruteChord[T]) SetPendingResponse(taskId int64, confirmation Confirmations) {
@@ -121,16 +98,10 @@ func (c *BruteChord[T]) SetPendingResponse(taskId int64, confirmation Confirmati
 	c.pendingResponses[taskId] = confirmation
 }
 
-func (c *BruteChord[T]) ReplaceSuccessorData(data Store) {
+func (c *BruteChord[T]) AddNewData(data Store, index int) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	c.successor.Data = c.copyStore(data)
-}
-
-func (c *BruteChord[T]) ReplaceSuccessorSuccessorData(data Store) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.successorSuccessor.Data = c.copyStore(data)
+	c.Info[index].Data = data
 }
 
 func (c *BruteChord[T]) GetPendingResponse(taskId int64) Confirmations {
@@ -140,81 +111,40 @@ func (c *BruteChord[T]) GetPendingResponse(taskId int64) Confirmations {
 	return confirmation
 }
 
-func (c *BruteChord[T]) releaseSuccessorReplica() {
+func (c *BruteChord[T]) SetContact(candidate T, index int) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	for key, data := range c.successor.Data {
-		c.myData[key] = data
+	if index == -1 {
+		c.predecessorRef = candidate
+	} else {
+		if c.Info[index].Contact.getNodeId() != candidate.getNodeId() {
+			c.logger.WriteToFileOK("Because I'll have a new successor, I'll have to release the replicas I was holding for that old successor")
+			for key, data := range c.Info[index].Data {
+				go c.Put(key, data)
+			}
+			c.Info[index] = ContactWithData[T]{Contact: candidate, Data: make(Store)}
+		}
 	}
-	c.successor.Data = make(Store)
-}
-
-func (c *BruteChord[T]) releaseSuccessorSuccessorReplica() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	for key, data := range c.successorSuccessor.Data {
-		c.myData[key] = data
-	}
-	c.successor.Data = make(Store)
-}
-
-func (c *BruteChord[T]) SetSuccessor(candidate T) {
-	if c.successor.Contact.getNodeId() != candidate.getNodeId() {
-		c.logger.WriteToFileOK("Because I'll have a new successor, I'll have to release the replicas I was holding for that old successor")
-		c.releaseSuccessorReplica()
-	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	curDate := time.Now()
 	c.Monitor.AddContact(candidate, curDate)
-	c.logger.WriteToFileOK("Calling SetSuccessor Method, setting %v at date %v", candidate, curDate)
-	c.successor = ContactWithData[T]{Contact: candidate, Data: make(Store)}
-}
-
-func (c *BruteChord[T]) GetSuccessorSuccessor() T {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	successorSuccessor := c.successorSuccessor.Contact
-	return successorSuccessor
-}
-
-func (c *BruteChord[T]) GetPredecessor() T {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	pred := c.predecessorRef
-	return pred
-}
-
-func (c *BruteChord[T]) SetSuccessorSuccessor(candidate T) {
-	if c.GetSuccessorSuccessor().getNodeId() != candidate.getNodeId() {
-		c.logger.WriteToFileOK("Because I'll have a new successorSuccessor, I'll have to release the replicas I was holding for that old successorSuccessor")
-		c.releaseSuccessorSuccessorReplica()
-	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	curDate := time.Now()
-	c.Monitor.AddContact(candidate, curDate)
-	c.logger.WriteToFileOK("Calling SetSuccessorSuccessor Method, setting %v at date %v", candidate, curDate)
-	c.successorSuccessor = ContactWithData[T]{Contact: candidate, Data: make(Store)}
-}
-
-func (c *BruteChord[T]) SetPredecessor(candidate T) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	curDate := time.Now()
-	c.Monitor.AddContact(candidate, curDate)
-	c.logger.WriteToFileOK("Calling SetPredecessor Method, setting %v at date %v", candidate, curDate)
-	c.predecessorRef = candidate
 }
 
 func (c *BruteChord[T]) DefaultSuccessor() T {
-	c.logger.WriteToFileOK("Calling DefaultSuccessor Method, returning %v", c.ServerChordCommunication.GetContact())
-	return c.ServerChordCommunication.GetContact()
+	contact := c.Info[0].Contact
+	c.logger.WriteToFileOK("Calling DefaultSuccessor Method, returning %v", contact)
+	return contact
 }
 
-func (c *BruteChord[T]) GetContact() T {
-	c.logger.WriteToFileOK("Calling GetContact Method, returning %v", c.ServerChordCommunication.GetContact())
-	return c.ServerChordCommunication.GetContact()
+func (c *BruteChord[T]) GetContact(index int) T {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	var contact T
+	if index == -1 {
+		contact = c.predecessorRef
+	} else {
+		contact = c.Info[index].Contact
+	}
+	return contact
 }
 
 // BeginWorking Callers should use a Barrier because this is an infinite loop.
@@ -240,7 +170,6 @@ func (c *BruteChord[T]) cpu() {
 			go c.sendCheckPredecessor() // Stabilize Predecessor.
 			go c.sendCheckAlive()       // Check if The Contacts I Have Are Alive.
 			go c.killDead()             // Remove the Contacts that are Dead.
-			go c.StabilizeStore()       // Stabilize My Data, because due to changes in successor I may have data that is not mine.
 		}
 	}
 }

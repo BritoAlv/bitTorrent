@@ -14,8 +14,7 @@ type ReceivedGetRequest[contact Contact] struct {
 
 func (g GetRequest[contact]) HandleNotification(b *BruteChord[contact]) {
 	b.logger.WriteToFileOK("Handling GetRequest from %v with GetId = %v", g.QueryHost.getNodeId(), g.GetId)
-	between := Between(b.GetId(), g.Key, b.GetSuccessor().getNodeId())
-	if between {
+	if b.Responsible(g.Key) {
 		clientTask := ClientTask[contact]{
 			Targets: []contact{g.QueryHost},
 			Data: ReceivedGetRequest[contact]{
@@ -28,7 +27,7 @@ func (g GetRequest[contact]) HandleNotification(b *BruteChord[contact]) {
 		b.ClientChordCommunication.sendRequest(clientTask)
 	} else {
 		clientTask := ClientTask[contact]{
-			Targets: []contact{b.GetSuccessor()},
+			Targets: []contact{b.GetContact(1)},
 			Data:    g,
 		}
 		b.ClientChordCommunication.sendRequest(clientTask)

@@ -15,7 +15,7 @@ func (a AreYouAliveNotification[contact]) HandleNotification(b *BruteChord[conta
 	b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 		Targets: target,
 		Data: ImAliveNotification[contact]{
-			b.GetContact(),
+			b.GetContact(0),
 		},
 	})
 }

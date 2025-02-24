@@ -20,11 +20,11 @@ func (c ConfirmReplication[contact]) HandleNotification(b *BruteChord[contact]) 
 func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]) {
 	b.logger.WriteToFileOK("Handling ReceiveDataReplicate from %v, supposed to be my %v successor, taskId  %v", r.DataOwner.getNodeId(), r.SuccessorIndex, r.TaskId)
 	if r.SuccessorIndex == 1 {
-		bSuccessor := b.GetSuccessor()
+		bSuccessor := b.GetContact(1)
 		if bSuccessor.getNodeId() == r.DataOwner.getNodeId() {
 			b.logger.WriteToFileOK("I am the first successor of %v", r.DataOwner.getNodeId())
 			b.logger.WriteToFileOK("I will now store the data")
-			b.ReplaceSuccessorData(r.Data)
+			b.AddNewData(r.Data, 1)
 			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 				Targets: []contact{r.DataOwner},
 				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
@@ -33,11 +33,11 @@ func (r ReceiveDataReplicate[contact]) HandleNotification(b *BruteChord[contact]
 			b.logger.WriteToFileOK("I am not the first successor of %v", r.DataOwner.getNodeId())
 		}
 	} else if r.SuccessorIndex == 2 {
-		bSuccessorSuccessor := b.GetSuccessorSuccessor()
+		bSuccessorSuccessor := b.GetContact(2)
 		if bSuccessorSuccessor.getNodeId() == r.DataOwner.getNodeId() {
 			b.logger.WriteToFileOK("I am the second successor of %v", r.DataOwner.getNodeId())
 			b.logger.WriteToFileOK("I will now store the data")
-			b.ReplaceSuccessorSuccessorData(r.Data)
+			b.AddNewData(r.Data, 2)
 			b.ClientChordCommunication.sendRequest(ClientTask[contact]{
 				Targets: []contact{r.DataOwner},
 				Data:    ConfirmReplication[contact]{TaskId: r.TaskId},
