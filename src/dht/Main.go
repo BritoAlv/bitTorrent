@@ -82,7 +82,7 @@ func ScenarioBasico() (*library.DataBaseInMemory, *sync.WaitGroup) {
 }
 
 func PutScenario() (*library.DataBaseInMemory, *sync.WaitGroup) {
-	N := 3
+	N := 10
 	library.SetLogDirectoryPath("PutScenario")
 	var database = *library.NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
@@ -91,12 +91,9 @@ func PutScenario() (*library.DataBaseInMemory, *sync.WaitGroup) {
 	for i := 0; i < N; i++ {
 		AddNode(&database, &barrier)
 	}
-	toPut[123] = []byte{1, 2, 3}
-	toPut[143] = []byte{1, 4, 3}
-	toPut[8] = []byte{8}
-	toPut[200] = []byte{200}
-	toPut[40] = []byte{40}
-
+	for i := 0; i < 50; i++ {
+		toPut[library.ChordHash(i)] = []byte{byte(i)}
+	}
 	time.Sleep(3 * time.Second)
 	nodes := database.GetNodes()
 	println(len(nodes))

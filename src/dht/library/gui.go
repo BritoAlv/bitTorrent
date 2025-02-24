@@ -25,7 +25,6 @@ type GUI struct {
 func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 	gui := &GUI{
 		db:             db,
-		iteration:      0,
 		window:         window,
 		nodeLabelsCard: make(map[int]LabelCard),
 		Grid:           container.NewGridWithColumns(4), // Adjust columns as needed
@@ -86,7 +85,6 @@ func (g *GUI) UpdateState() {
 }
 
 func (g *GUI) PrepareState() map[int]string {
-	g.iteration++
 	nodes := g.db.GetNodes()
 	sort.Slice(nodes, func(i, j int) bool {
 		return nodes[i].GetId() < nodes[j].GetId()

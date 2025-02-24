@@ -20,7 +20,7 @@ func (g GetRequest[contact]) HandleNotification(b *BruteChord[contact]) {
 			Data: ReceivedGetRequest[contact]{
 				Sender: g.QueryHost,
 				GetId:  g.GetId,
-				Value:  b.Get(g.Key),
+				Value:  b.GetData(g.Key, 0),
 			},
 		}
 		b.logger.WriteToFileOK("Sending Confirmations to %v with GetId = %v", g.QueryHost.getNodeId(), g.GetId)

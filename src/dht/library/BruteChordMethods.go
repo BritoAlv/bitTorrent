@@ -2,6 +2,8 @@ package library
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"time"
 )
@@ -40,7 +42,7 @@ func (c *BruteChord[T]) ReplicateData(successorIndex int, target T) {
 	go c.SendRequestUntilConfirmation(clientTask, taskId)
 }
 
-func (c *BruteChord[T]) Get(key ChordHash) []byte {
+func (c *BruteChord[T]) Get(key ChordHash) ([]byte, bool) {
 	c.logger.WriteToFileOK("Calling Get Method on key %v", key)
 	taskId := generateTaskId()
 	clientTask := ClientTask[T]{
@@ -53,7 +55,7 @@ func (c *BruteChord[T]) Get(key ChordHash) []byte {
 	}
 	c.SendRequestUntilConfirmation(clientTask, taskId)
 	confirmation := c.GetPendingResponse(taskId)
-	return confirmation.Value
+	return confirmation.Value, confirmation.Confirmation
 }
 
 func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
@@ -120,18 +122,22 @@ func (c *BruteChord[T]) State() string {
 	state := "Node: " + strconv.Itoa(int(c.GetId())) + "\n"
 	state += "Successor: " + strconv.Itoa(int(c.GetContact(1).getNodeId())) + "\n"
 	state += "Successor Data Replicas Are: " + "\n"
-	for key, value := range c.GetAllData(1) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
+
+	successorData := c.GetAllData(1)
+	successorSuccessorData := c.GetAllData(2)
+	ownData := c.GetAllData(0)
+	for key := range slices.Sorted(maps.Keys(successorData)) {
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorData[ChordHash(key)]) + "\n"
 	}
 	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetContact(2).getNodeId())) + "\n"
 	state += "SuccessorSuccessor Data Replica:" + "\n"
-	for key, value := range c.GetAllData(2) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
+	for key := range slices.Sorted(maps.Keys(successorSuccessorData)) {
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorSuccessorData[ChordHash(key)]) + "\n"
 	}
 	state += "Predecessor: " + strconv.Itoa(int(c.GetContact(-1).getNodeId())) + "\n"
 	state += "Data stored:\n"
-	for key, value := range c.GetAllData(0) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", value) + "\n"
+	for key := range slices.Sorted(maps.Keys(ownData)) {
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", ownData[ChordHash(key)]) + "\n"
 	}
 	return state
 }
