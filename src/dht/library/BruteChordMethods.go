@@ -2,8 +2,7 @@ package library
 
 import (
 	"fmt"
-	"maps"
-	"slices"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -118,6 +117,17 @@ func (c *BruteChord[T]) StopWorking() {
 	c.NotificationChannelServerNode <- nil
 }
 
+func sortKeys(data Store) []ChordHash {
+	keys := make([]ChordHash, 0)
+	for key := range data {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	return keys
+}
+
 func (c *BruteChord[T]) State() string {
 	state := "Node: " + strconv.Itoa(int(c.GetId())) + "\n"
 	state += "Successor: " + strconv.Itoa(int(c.GetContact(1).getNodeId())) + "\n"
@@ -126,17 +136,17 @@ func (c *BruteChord[T]) State() string {
 	successorData := c.GetAllData(1)
 	successorSuccessorData := c.GetAllData(2)
 	ownData := c.GetAllData(0)
-	for key := range slices.Sorted(maps.Keys(successorData)) {
+	for _, key := range sortKeys(successorData) {
 		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorData[ChordHash(key)]) + "\n"
 	}
 	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetContact(2).getNodeId())) + "\n"
 	state += "SuccessorSuccessor Data Replica:" + "\n"
-	for key := range slices.Sorted(maps.Keys(successorSuccessorData)) {
+	for _, key := range sortKeys(successorSuccessorData) {
 		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorSuccessorData[ChordHash(key)]) + "\n"
 	}
 	state += "Predecessor: " + strconv.Itoa(int(c.GetContact(-1).getNodeId())) + "\n"
 	state += "Data stored:\n"
-	for key := range slices.Sorted(maps.Keys(ownData)) {
+	for _, key := range sortKeys(ownData) {
 		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", ownData[ChordHash(key)]) + "\n"
 	}
 	return state
