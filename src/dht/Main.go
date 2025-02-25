@@ -4,7 +4,6 @@ import (
 	"bittorrent/dht/library"
 	"fmt"
 	"fyne.io/fyne/app"
-	"fyne.io/fyne/container"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -16,11 +15,6 @@ func StartGUI(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
 	fmt.Println("App Started")              // Create a new application
 	w := a.NewWindow("Chord Network State") // Create a new window
 	gui := library.NewGUI(database, w)      // Create the GUI
-	scrollContainer := container.Scroll{
-		Content: gui.Grid,
-	}
-	// Set the grid layout as content
-	w.SetContent(&scrollContainer)
 	// Run state updates in a separate goroutine
 	barrier.Add(1)
 	go func() {

@@ -21,6 +21,8 @@ type GUI struct {
 	window         fyne.Window
 	nodeLabelsCard map[int]LabelCard // Map of node ID -> Label for dynamic updates
 	Grid           *fyne.Container
+	paused         bool
+	pausedButton   *widget.Button
 }
 
 func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
@@ -28,17 +30,33 @@ func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 		db:             db,
 		window:         window,
 		nodeLabelsCard: make(map[int]LabelCard),
-		Grid:           container.NewGridWithColumns(4), // Adjust columns as needed
+		Grid:           container.NewGridWithColumns(4),
+		paused:         false,
 	}
 
-	window.SetContent(gui.Grid)
+	gui.pausedButton = widget.NewButton("Pause", func() {
+		gui.paused = !gui.paused
+		if gui.paused {
+			gui.pausedButton.SetText("Resume")
+		} else {
+			gui.pausedButton.SetText("Pause")
+		}
+	})
+
+	content := container.NewVBox(gui.pausedButton, gui.Grid)
+	scrollContainer := container.NewScroll(content)
+	window.SetContent(scrollContainer)
 	window.Resize(fyne.NewSize(800, 600))
+
 	return gui
 }
 
 func (g *GUI) UpdateState() {
 	for {
 		time.Sleep(2 * time.Second)
+		if g.paused {
+			continue
+		}
 		stateMap := g.PrepareState()
 
 		// Get the keys and sort them
