@@ -69,7 +69,7 @@ func ScenarioBasico() (*library.DataBaseInMemory, *sync.WaitGroup) {
 	go func() {
 		defer barrier.Done()
 		for {
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 			if rand.Float32() <= 0.3 {
 				AddNode(&database, &barrier)
 			}
@@ -104,6 +104,6 @@ func PutScenario() (*library.DataBaseInMemory, *sync.WaitGroup) {
 }
 
 func main() {
-	database, barrier := PutScenario()
+	database, barrier := ScenarioBasico()
 	StartGUI(database, barrier)
 }

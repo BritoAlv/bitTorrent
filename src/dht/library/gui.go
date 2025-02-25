@@ -34,51 +34,53 @@ func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 	return gui
 }
 
-func (g *GUI) ClearGrid() {
-	g.Grid.Objects = []fyne.CanvasObject{}
-	g.nodeLabelsCard = make(map[int]LabelCard)
-	g.Grid.Refresh()
-}
-
 func (g *GUI) UpdateState() {
 	for {
-		time.Sleep(2 * time.Second) // Replace `StateQueryWaitTime` with an actual value
-		g.ClearGrid()
+		time.Sleep(2 * time.Second) // Replace with actual interval
 		stateMap := g.PrepareState()
 
-		// Get the keys and sort them
+		// Sort node IDs
 		keys := make([]int, 0, len(stateMap))
 		for k := range stateMap {
 			keys = append(keys, k)
 		}
 		sort.Ints(keys)
 
-		// Iterate over the sorted keys
-		for _, nodeID := range keys {
-			state := stateMap[nodeID]
-			if labelCard, exists := g.nodeLabelsCard[nodeID]; exists {
-				labelCard.Label.SetText(state)
-			} else {
-				// Create a new card for the node if it doesn't exist
-				label := widget.NewLabel(state)
-
-				fixedSizeContainer := container.NewScroll(container.NewVBox(label))
-				fixedSizeContainer.SetMinSize(fyne.NewSize(250, 250))
-
-				card := widget.NewCard(fmt.Sprintf("Node %d", nodeID), "", fixedSizeContainer)
-				g.nodeLabelsCard[nodeID] = LabelCard{
-					Label: label,
-					Card:  card,
-				}
-				g.Grid.Add(card)
-
+		// Store existing scroll positions
+		scrollPositions := make(map[int]int)
+		for nodeID, labelCard := range g.nodeLabelsCard {
+			if scroll, ok := labelCard.Card.Content.(*container.Scroll); ok {
+				scrollPositions[nodeID] = scroll.Offset.Y
 			}
 		}
-		for nodeID, labelCard := range g.nodeLabelsCard {
-			if _, exists := stateMap[nodeID]; !exists {
-				g.Grid.Remove(labelCard.Card)
-				delete(g.nodeLabelsCard, nodeID)
+
+		// Clear the grid but keep references
+		g.Grid.Objects = nil
+
+		// Re-add nodes in sorted order
+		for _, nodeID := range keys {
+			state := stateMap[nodeID]
+			var labelCard LabelCard
+			if existingCard, exists := g.nodeLabelsCard[nodeID]; exists {
+				existingCard.Label.SetText(state)
+				labelCard = existingCard
+			} else {
+				// Create a new UI component if it doesn't exist
+				label := widget.NewLabel(state)
+				scrollContainer := container.NewScroll(container.NewVBox(label))
+				scrollContainer.SetMinSize(fyne.NewSize(250, 250))
+
+				card := widget.NewCard(fmt.Sprintf("Node %d", nodeID), "", scrollContainer)
+				labelCard = LabelCard{Label: label, Card: card}
+				g.nodeLabelsCard[nodeID] = labelCard
 			}
+			// Restore scroll position if it existed
+			if scroll, ok := labelCard.Card.Content.(*container.Scroll); ok {
+				if pos, found := scrollPositions[nodeID]; found {
+					scroll.Offset.Y = pos
+				}
+			}
+			g.Grid.Add(labelCard.Card)
 		}
 		g.window.Content().Refresh()
 	}
