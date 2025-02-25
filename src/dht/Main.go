@@ -60,8 +60,20 @@ func RemoveNode(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
 	}
 }
 
-func ScenarioBasico() (*library.DataBaseInMemory, *sync.WaitGroup) {
-	library.SetLogDirectoryPath("Basic Scenario")
+func PutData(database *library.DataBaseInMemory) {
+	if len(database.GetNodes()) > 0 {
+		for _, node := range database.GetNodes() {
+			key := rand.Int() % (1 << library.NumberBits)
+			val := []byte{byte(key)}
+			fmt.Printf("Going to put key %v with data %v using query node = %v \n", key, val, node.GetId())
+			node.Put(library.ChordHash(key), val)
+			break
+		}
+	}
+}
+
+func ScenarioEasy() (*library.DataBaseInMemory, *sync.WaitGroup) {
+	library.SetLogDirectoryPath("Basic Scenario : Random Add Of Nodes, Random Remove Of Nodes")
 	var database = *library.NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
 	fmt.Println("Nodes are being added and removed randomly every once a while")
@@ -81,6 +93,29 @@ func ScenarioBasico() (*library.DataBaseInMemory, *sync.WaitGroup) {
 	return &database, &barrier
 }
 
+func ScenarioMedium() (*library.DataBaseInMemory, *sync.WaitGroup) {
+	library.SetLogDirectoryPath("Medium Scenario: Random Add Of Nodes, Random Remove Of Nodes, Random Put Of Data")
+	var database = *library.NewDataBaseInMemory()
+	var barrier = sync.WaitGroup{}
+	barrier.Add(1)
+	go func() {
+		defer barrier.Done()
+		for {
+			time.Sleep(3 * time.Second)
+			if rand.Float32() <= 0.4 {
+				AddNode(&database, &barrier)
+			}
+			if rand.Float32() <= 0.1 {
+				RemoveNode(&database, &barrier)
+			}
+			if rand.Float32() <= 0.7 {
+				PutData(&database)
+			}
+		}
+	}()
+	return &database, &barrier
+}
+
 func PutScenario() (*library.DataBaseInMemory, *sync.WaitGroup) {
 	N := 10
 	library.SetLogDirectoryPath("PutScenario")
@@ -94,16 +129,18 @@ func PutScenario() (*library.DataBaseInMemory, *sync.WaitGroup) {
 	for i := 0; i < 50; i++ {
 		toPut[library.ChordHash(i)] = []byte{byte(i)}
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 	nodes := database.GetNodes()
 	println(len(nodes))
 	for key, value := range toPut {
-		nodes[0].Put(key, value)
+		for _, node := range nodes {
+			go node.Put(key, value)
+		}
 	}
 	return &database, &barrier
 }
 
 func main() {
-	database, barrier := ScenarioBasico()
+	database, barrier := ScenarioMedium()
 	StartGUI(database, barrier)
 }

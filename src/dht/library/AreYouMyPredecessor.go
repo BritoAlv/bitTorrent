@@ -17,7 +17,6 @@ func (i ImYourPredecessor[contact]) HandleNotification(b *BruteChord[contact]) {
 	myPredecessorPredecessor := i.MyPredecessor
 	b.logger.WriteToFileOK("My predecessor is now %v and its predecessor is %v", myPredecessor.getNodeId(), myPredecessorPredecessor.getNodeId())
 	b.logger.WriteToFileOK("I will now replicate my data to my new predecessors")
-
 	b.ReplicateData(1, myPredecessor)
 	b.ReplicateData(2, myPredecessorPredecessor)
 }

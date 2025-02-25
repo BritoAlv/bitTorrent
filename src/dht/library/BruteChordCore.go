@@ -72,6 +72,18 @@ func (c *BruteChord[T]) copyStore(store Store) Store {
 	return data
 }
 
+func (c *BruteChord[T]) stabilizeOwnData() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	successor := c.Info[1].Contact.getNodeId()
+	for key, value := range c.Info[0].Data {
+		if !Between(c.id, key, successor) {
+			delete(c.Info[0].Data, key)
+			go c.Put(key, value)
+		}
+	}
+}
+
 func (c *BruteChord[T]) GetData(key ChordHash, index int) []byte {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -170,6 +182,7 @@ func (c *BruteChord[T]) cpu() {
 			go c.sendCheckPredecessor() // Stabilize Predecessor.
 			go c.sendCheckAlive()       // Check if The Contacts I Have Are Alive.
 			go c.killDead()             // Remove the Contacts that are Dead.
+			go c.stabilizeOwnData()
 		}
 	}
 }
