@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/container"
 	"fyne.io/fyne/widget"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -36,52 +37,55 @@ func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 
 func (g *GUI) UpdateState() {
 	for {
-		time.Sleep(2 * time.Second) // Replace with actual interval
+		time.Sleep(2 * time.Second)
 		stateMap := g.PrepareState()
 
-		// Sort node IDs
+		// Get the keys and sort them
 		keys := make([]int, 0, len(stateMap))
 		for k := range stateMap {
 			keys = append(keys, k)
 		}
 		sort.Ints(keys)
 
-		// Store existing scroll positions
-		scrollPositions := make(map[int]int)
-		for nodeID, labelCard := range g.nodeLabelsCard {
-			if scroll, ok := labelCard.Card.Content.(*container.Scroll); ok {
-				scrollPositions[nodeID] = scroll.Offset.Y
-			}
-		}
-
-		// Clear the grid but keep references
-		g.Grid.Objects = nil
-
-		// Re-add nodes in sorted order
+		// Iterate over the sorted keys
 		for _, nodeID := range keys {
 			state := stateMap[nodeID]
-			var labelCard LabelCard
-			if existingCard, exists := g.nodeLabelsCard[nodeID]; exists {
-				existingCard.Label.SetText(state)
-				labelCard = existingCard
+			if labelCard, exists := g.nodeLabelsCard[nodeID]; exists {
+				labelCard.Label.SetText(state)
 			} else {
-				// Create a new UI component if it doesn't exist
+				// Create a new card for the node if it doesn't exist
 				label := widget.NewLabel(state)
-				scrollContainer := container.NewScroll(container.NewVBox(label))
-				scrollContainer.SetMinSize(fyne.NewSize(250, 250))
 
-				card := widget.NewCard(fmt.Sprintf("Node %d", nodeID), "", scrollContainer)
-				labelCard = LabelCard{Label: label, Card: card}
-				g.nodeLabelsCard[nodeID] = labelCard
-			}
-			// Restore scroll position if it existed
-			if scroll, ok := labelCard.Card.Content.(*container.Scroll); ok {
-				if pos, found := scrollPositions[nodeID]; found {
-					scroll.Offset.Y = pos
+				fixedSizeContainer := container.NewScroll(container.NewVBox(label))
+				fixedSizeContainer.SetMinSize(fyne.NewSize(250, 250))
+
+				card := widget.NewCard(fmt.Sprintf("Node %d", nodeID), "", fixedSizeContainer)
+				g.nodeLabelsCard[nodeID] = LabelCard{
+					Label: label,
+					Card:  card,
 				}
+				g.Grid.Add(card)
+
 			}
-			g.Grid.Add(labelCard.Card)
 		}
+		for nodeID, labelCard := range g.nodeLabelsCard {
+			if _, exists := stateMap[nodeID]; !exists {
+				g.Grid.Remove(labelCard.Card)
+				delete(g.nodeLabelsCard, nodeID)
+			}
+		}
+		objects := g.Grid.Objects
+		g.Grid.Objects = nil
+		sort.Slice(objects, func(i, j int) bool {
+			one, _ := strconv.Atoi(objects[i].(*widget.Card).Title[5:])
+			two, _ := strconv.Atoi(objects[j].(*widget.Card).Title[5:])
+
+			return one < two
+		})
+		for _, object := range objects {
+			g.Grid.Add(object)
+		}
+
 		g.window.Content().Refresh()
 	}
 }
