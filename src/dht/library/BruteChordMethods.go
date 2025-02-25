@@ -137,17 +137,17 @@ func (c *BruteChord[T]) State() string {
 	successorSuccessorData := c.GetAllData(2)
 	ownData := c.GetAllData(0)
 	for _, key := range sortKeys(successorData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorData[ChordHash(key)]) + "\n"
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorData[key]) + "\n"
 	}
 	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetContact(2).getNodeId())) + "\n"
 	state += "SuccessorSuccessor Data Replica:" + "\n"
 	for _, key := range sortKeys(successorSuccessorData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorSuccessorData[ChordHash(key)]) + "\n"
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorSuccessorData[key]) + "\n"
 	}
 	state += "Predecessor: " + strconv.Itoa(int(c.GetContact(-1).getNodeId())) + "\n"
 	state += "Data stored:\n"
 	for _, key := range sortKeys(ownData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", ownData[ChordHash(key)]) + "\n"
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", ownData[key]) + "\n"
 	}
 	return state
 }

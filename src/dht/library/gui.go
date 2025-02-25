@@ -32,6 +32,7 @@ func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 	}
 
 	window.SetContent(gui.Grid)
+	window.Resize(fyne.NewSize(800, 600))
 	return gui
 }
 
