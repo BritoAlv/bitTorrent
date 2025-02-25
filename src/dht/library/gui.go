@@ -3,10 +3,12 @@ package library
 import (
 	"fmt"
 	"fyne.io/fyne"
+	"fyne.io/fyne/app"
 	"fyne.io/fyne/container"
 	"fyne.io/fyne/widget"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -17,7 +19,6 @@ type LabelCard struct {
 
 type GUI struct {
 	db             *DataBaseInMemory
-	iteration      int
 	window         fyne.Window
 	nodeLabelsCard map[int]LabelCard // Map of node ID -> Label for dynamic updates
 	Grid           *fyne.Container
@@ -123,4 +124,18 @@ func (g *GUI) PrepareState() map[int]string {
 
 func (g *GUI) ShowNodeState(node *BruteChord[InMemoryContact]) string {
 	return node.State()
+}
+
+func StartGUI(database *DataBaseInMemory, barrier *sync.WaitGroup) {
+	a := app.New()
+	fmt.Println("App Started")              // Create a new application
+	w := a.NewWindow("Chord Network State") // Create a new window
+	gui := NewGUI(database, w)              // Create the GUI
+	// Run state updates in a separate goroutine
+	barrier.Add(1)
+	go func() {
+		gui.UpdateState()
+		barrier.Done()
+	}()
+	w.ShowAndRun()
 }

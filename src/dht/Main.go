@@ -3,26 +3,11 @@ package main
 import (
 	"bittorrent/dht/library"
 	"fmt"
-	"fyne.io/fyne/app"
 	"math/rand"
 	"strconv"
 	"sync"
 	"time"
 )
-
-func StartGUI(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
-	a := app.New()
-	fmt.Println("App Started")              // Create a new application
-	w := a.NewWindow("Chord Network State") // Create a new window
-	gui := library.NewGUI(database, w)      // Create the GUI
-	// Run state updates in a separate goroutine
-	barrier.Add(1)
-	go func() {
-		gui.UpdateState()
-		barrier.Done()
-	}()
-	w.ShowAndRun()
-}
 
 func AddNode(database *library.DataBaseInMemory, barrier *sync.WaitGroup) {
 	randomId := library.GenerateRandomBinaryId()
@@ -67,7 +52,7 @@ func PutData(database *library.DataBaseInMemory) {
 }
 
 func ScenarioEasy() (*library.DataBaseInMemory, *sync.WaitGroup) {
-	library.SetLogDirectoryPath("Basic Scenario : Random Add Of Nodes, Random Remove Of Nodes")
+	library.SetLogDirectoryPath("BasicScenario")
 	var database = *library.NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
 	fmt.Println("Nodes are being added and removed randomly every once a while")
@@ -88,7 +73,7 @@ func ScenarioEasy() (*library.DataBaseInMemory, *sync.WaitGroup) {
 }
 
 func ScenarioMedium() (*library.DataBaseInMemory, *sync.WaitGroup) {
-	library.SetLogDirectoryPath("Medium Scenario: Random Add Of Nodes, Random Remove Of Nodes, Random Put Of Data")
+	library.SetLogDirectoryPath("MediumScenario")
 	var database = *library.NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
 	barrier.Add(1)
@@ -136,5 +121,5 @@ func PutScenario() (*library.DataBaseInMemory, *sync.WaitGroup) {
 
 func main() {
 	database, barrier := ScenarioMedium()
-	StartGUI(database, barrier)
+	library.StartGUI(database, barrier)
 }

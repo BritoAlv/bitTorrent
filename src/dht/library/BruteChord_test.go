@@ -2,7 +2,6 @@ package library
 
 import (
 	"math/rand"
-	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -10,12 +9,6 @@ import (
 )
 
 const NumberOfRuns = 2
-
-func Sort(ids []ChordHash) {
-	sort.Slice(ids, func(i, j int) bool {
-		return ids[i] < ids[j]
-	})
-}
 
 func TestRunMultipleTimes(t *testing.T) {
 	for i := 0; i < NumberOfRuns; i++ {
@@ -25,7 +18,24 @@ func TestRunMultipleTimes(t *testing.T) {
 		t.Run("TestBasicPutGet", TestBasicPutGet)
 		t.Run("TestBasicReplication", TestBasicReplication)
 		t.Run("TestReplication", TestReplication)
+		t.Run("TestTolerance", TestTolerance)
+		t.Run("TestUpdateWithReplication", TestUpdateWithReplication)
 	}
+}
+
+func AddNode(database *DataBaseInMemory, barrier *sync.WaitGroup) {
+	randomId := GenerateRandomBinaryId()
+	randomIdStr := strconv.Itoa(int(randomId))
+	var server = NewServerInMemory(database, "Server"+randomIdStr)
+	var client = NewClientInMemory(database, "Client"+randomIdStr)
+	var monitor = NewMonitorHand[InMemoryContact]("Monitor" + randomIdStr)
+	node := NewBruteChord[InMemoryContact](server, client, monitor, randomId)
+	database.AddNode(node, server, client)
+	barrier.Add(1)
+	go func() {
+		node.BeginWorking()
+		barrier.Done()
+	}()
 }
 
 func StartUp(name string, NumberNodes int) (*DataBaseInMemory, *sync.WaitGroup, map[ChordHash]*BruteChord[InMemoryContact], []ChordHash) {
@@ -33,18 +43,7 @@ func StartUp(name string, NumberNodes int) (*DataBaseInMemory, *sync.WaitGroup, 
 	var database = *NewDataBaseInMemory()
 	var barrier = sync.WaitGroup{}
 	for i := 0; i < NumberNodes; i++ {
-		randomId := GenerateRandomBinaryId()
-		randomIdStr := strconv.Itoa(int(randomId))
-		var server = NewServerInMemory(&database, "Server"+randomIdStr)
-		var client = NewClientInMemory(&database, "Client"+randomIdStr)
-		var monitor = NewMonitorHand[InMemoryContact]("Monitor" + randomIdStr)
-		node := NewBruteChord[InMemoryContact](server, client, monitor, randomId)
-		database.AddNode(node, server, client)
-		barrier.Add(1)
-		go func() {
-			node.BeginWorking()
-			barrier.Done()
-		}()
+		AddNode(&database, &barrier)
 	}
 	nodes := make(map[ChordHash]*BruteChord[InMemoryContact])
 	ids := make([]ChordHash, 0)
@@ -213,6 +212,96 @@ func TestReplication(t *testing.T) {
 	}
 	for i := 4; i < NumberNodes; i++ {
 		node := nodes[ids[i]]
+		node.StopWorking()
+	}
+	barrier.Wait()
+}
+
+func TestTolerance(t *testing.T) {
+	NumberNodes := 0
+	Iteration := 10
+	NumberDataLookUp := 10
+	database, barrier, _, _ := StartUp("TestTolerance", NumberNodes)
+	data := make(map[ChordHash][]byte)
+	for i := 0; i < NumberDataLookUp; i++ {
+		randKey := rand.Int() % (1 << NumberBits)
+		data[ChordHash(randKey)] = []byte{byte(randKey)}
+	}
+	for i := 0; i < Iteration; i++ {
+		// choose two random nodes and stop them.
+		t.Logf("Iteration %v", i)
+		if len(database.GetNodes()) >= 3 {
+			t.Logf("Removing nodes")
+			for j := 0; j < 2; j++ {
+				nodes := database.GetNodes()
+				node1 := nodes[rand.Intn(len(nodes))]
+				database.RemoveNode(node1)
+			}
+			time.Sleep(4 * time.Second)
+			nodes := database.GetNodes()
+			node1 := nodes[rand.Intn(len(nodes))]
+			for key := range data {
+				_, exist := node1.Get(key)
+				if !exist {
+					t.Fatalf("Chord does not have the value for key %v", key)
+				} else {
+					t.Logf("Query for %v found it", key)
+				}
+			}
+		}
+		if len(database.GetNodes()) <= 2 {
+			t.Logf("Adding Nodes")
+			AddNode(database, barrier)
+			AddNode(database, barrier)
+		}
+	}
+	for _, node := range database.GetNodes() {
+		node.StopWorking()
+	}
+	barrier.Wait()
+}
+
+func TestUpdateWithReplication(t *testing.T) {
+	NumberNodes := 3
+	database, barrier, _, _ := StartUp("TestUpdateWithReplication", NumberNodes)
+	key := 10
+	valueOld := []byte("old value")
+	valueNew := []byte("new value")
+	for _, node := range database.GetNodes() {
+		node.Put(ChordHash(key), valueOld)
+		break
+	}
+	time.Sleep(3 * time.Second)
+	for _, node := range database.GetNodes() {
+		node.Put(ChordHash(key), valueNew)
+		break
+	}
+	time.Sleep(3 * time.Second)
+	for _, node := range database.GetNodes() {
+		value, exist := node.Get(ChordHash(key))
+		if !exist {
+			t.Fatalf("Chord does not have the value for key %v", key)
+		}
+		if string(value) != string(valueNew) {
+			t.Fatalf("Chord has incorrect value for key %v: got %v, want %v", key, string(value), string(valueNew))
+		}
+	}
+	for i := 0; i < 2; i++ {
+		for _, node := range database.GetNodes() {
+			database.RemoveNode(node)
+		}
+	}
+	time.Sleep(3 * time.Second)
+	for _, node := range database.GetNodes() {
+		value, exist := node.Get(ChordHash(key))
+		if !exist {
+			t.Fatalf("Chord does not have the value for key %v", key)
+		}
+		if string(value) != string(valueNew) {
+			t.Fatalf("Chord has incorrect value for key %v: got %v, want %v", key, string(value), string(valueNew))
+		}
+	}
+	for _, node := range database.GetNodes() {
 		node.StopWorking()
 	}
 	barrier.Wait()

@@ -3,6 +3,7 @@ package library
 import (
 	"bittorrent/common"
 	"math/rand/v2"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -13,10 +14,20 @@ func generateTaskId() int64 {
 	return rand.Int64()
 }
 
+func generateRandomKey() ChordHash {
+	return rand.Int64() % (1 << NumberBits)
+}
+
+func Sort(ids []ChordHash) {
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i] < ids[j]
+	})
+}
+
 func GenerateRandomBinaryId() ChordHash {
 	var result ChordHash
 	for {
-		result = rand.Int64() % (1 << NumberBits)
+		result = generateRandomKey()
 		if _, exist := usedId[result]; !exist {
 			usedId[result] = true
 			break
