@@ -1,6 +1,8 @@
-package library
+package Core
 
-import "time"
+import (
+	"time"
+)
 
 type Monitor[T Contact] interface {
 	// AddContact :Add a contact to the monitor using arrivalDate as reference.

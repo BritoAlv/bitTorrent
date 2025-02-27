@@ -3,7 +3,9 @@ package common
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 )
 
 var LogsPath = "./logs/"
@@ -13,6 +15,10 @@ type Logger struct {
 	FileName    string
 	Prefix      string
 	lock        sync.Mutex
+}
+
+func SetLogDirectoryPath(name string) {
+	LogsPath = "./logs/" + name + strconv.Itoa(time.Now().Nanosecond()) + "/"
 }
 
 func NewLogger(fileID string) *Logger {

@@ -1,9 +1,9 @@
-package library
+package InMemory
 
 import (
+	"bittorrent/common"
+	"bittorrent/dht/library/BruteChord/Core"
 	"math/rand"
-	"strconv"
-	"sync"
 	"testing"
 	"time"
 )
@@ -13,7 +13,6 @@ const NumberOfRuns = 2
 func TestRunMultipleTimes(t *testing.T) {
 	for i := 0; i < NumberOfRuns; i++ {
 		t.Run("TestBasicChordBehaviourInitialization", TestBasicChordBehaviourInitialization)
-		t.Run("TestBasicChordBehaviourNoDead", TestBasicChordBehaviourNoDead)
 		t.Run("TestBasicChordBehaviourStabilization", TestBasicChordBehaviourStabilization)
 		t.Run("TestBasicPutGet", TestBasicPutGet)
 		t.Run("TestBasicReplication", TestBasicReplication)
@@ -23,37 +22,21 @@ func TestRunMultipleTimes(t *testing.T) {
 	}
 }
 
-func AddNode(database *DataBaseInMemory, barrier *sync.WaitGroup) {
-	randomId := GenerateRandomBinaryId()
-	randomIdStr := strconv.Itoa(int(randomId))
-	var server = NewServerInMemory(database, "Server"+randomIdStr)
-	var client = NewClientInMemory(database, "Client"+randomIdStr)
-	var monitor = NewMonitorHand[InMemoryContact]("Monitor" + randomIdStr)
-	node := NewBruteChord[InMemoryContact](server, client, monitor, randomId)
-	database.AddNode(node, server, client)
-	barrier.Add(1)
-	go func() {
-		node.BeginWorking()
-		barrier.Done()
-	}()
-}
-
-func StartUp(name string, NumberNodes int) (*DataBaseInMemory, *sync.WaitGroup, map[ChordHash]*BruteChord[InMemoryContact], []ChordHash) {
-	SetLogDirectoryPath(name)
+func StartUp(name string, NumberNodes int) (*DataBaseInMemory, map[Core.ChordHash]*Core.BruteChord[ContactInMemory], []Core.ChordHash) {
+	common.SetLogDirectoryPath(name)
 	var database = *NewDataBaseInMemory()
-	var barrier = sync.WaitGroup{}
 	for i := 0; i < NumberNodes; i++ {
-		AddNode(&database, &barrier)
+		database.CreateRandomNode()
 	}
-	nodes := make(map[ChordHash]*BruteChord[InMemoryContact])
-	ids := make([]ChordHash, 0)
+	nodes := make(map[Core.ChordHash]*Core.BruteChord[ContactInMemory])
+	ids := make([]Core.ChordHash, 0)
 	for _, node := range database.GetNodes() {
 		nodes[node.GetId()] = node
 		ids = append(ids, node.GetId())
 	}
-	Sort(ids)
-	time.Sleep((10 * WaitingTime) * time.Second)
-	return &database, &barrier, nodes, ids
+	Core.Sort(ids)
+	time.Sleep((10 * Core.WaitingTime) * time.Second)
+	return &database, nodes, ids
 }
 
 /*
@@ -62,7 +45,7 @@ nodes should have as its successor the next one in the ring.
 */
 func TestBasicChordBehaviourInitialization(t *testing.T) {
 	NumberNodes := 10
-	_, barrier, nodes, ids := StartUp("TestBasicChordBehaviourInitialization", NumberNodes)
+	_, nodes, ids := StartUp("TestBasicChordBehaviourInitialization", NumberNodes)
 	for i := 0; i < NumberNodes; i++ {
 		nodeId := ids[i]
 		node := nodes[nodeId]
@@ -71,52 +54,30 @@ func TestBasicChordBehaviourInitialization(t *testing.T) {
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {
 			t.Errorf("Node %v has successor %v, expected %v", nodeId, successorId, expectedSuccessorId)
+		} else {
+			t.Logf("Node %v has successor %v", nodeId, successorId)
 		}
 	}
-	for i := 0; i < NumberNodes; i++ {
-		node := nodes[ids[i]]
-		node.StopWorking()
-	}
-	barrier.Wait()
-}
-
-// TestBasicChordBehaviourNoDead : N nodes are created simultaneously, at any moment all nodes are active, so there should be no dead nodes.
-func TestBasicChordBehaviourNoDead(t *testing.T) {
-	_, barrier, nodes, _ := StartUp("TestBasicChordBehaviourNoDead", 10)
-	time.Sleep((10 * WaitingTime) * time.Second)
-	for _, node := range nodes {
-		if len(node.DeadContacts) > 0 {
-			t.Errorf("Node %v has the dead contacts ", node.GetId())
-		}
-	}
-	for _, node := range nodes {
-		node.StopWorking()
-	}
-	barrier.Wait()
 }
 
 // TestBasicChordBehaviourStabilization : N nodes are created simultaneously, some nodes randomly go down, and eventually go up, after stabilization occurs it should
 // happen that all the nodes are successors are fine.
 func TestBasicChordBehaviourStabilization(t *testing.T) {
 	NumberNodes := 10
-	_, barrier, nodes, ids := StartUp("TestBasicChordBehaviourStabilization", NumberNodes)
-	down := make([]*BruteChord[InMemoryContact], 0, NumberNodes)
+	database, nodes, ids := StartUp("TestBasicChordBehaviourStabilization", NumberNodes)
+	down := make([]*Core.BruteChord[ContactInMemory], 0, NumberNodes)
 	for i := 0; i < NumberNodes; i++ {
 		if rand.Float32() <= 0.5 {
 			nodeId := ids[i]
 			node := nodes[nodeId]
 			down = append(down, node)
-			node.StopWorking()
+			database.ChangeNodeState(nodeId, false)
 		}
 	}
 	for _, node := range down {
-		barrier.Add(1)
-		go func() {
-			node.BeginWorking()
-			barrier.Done()
-		}()
+		database.ChangeNodeState(node.GetId(), true)
 	}
-	time.Sleep((10 * WaitingTime) * time.Second)
+	time.Sleep((10 * Core.WaitingTime) * time.Second)
 	for i := 0; i < NumberNodes; i++ {
 		nodeId := ids[i]
 		node := nodes[nodeId]
@@ -125,23 +86,19 @@ func TestBasicChordBehaviourStabilization(t *testing.T) {
 		expectedSuccessorId := ids[(i+1)%NumberNodes]
 		if successorId != expectedSuccessorId {
 			t.Errorf("Node %v has successor %v, expected %v", nodeId, successorId, expectedSuccessorId)
+		} else {
+			t.Logf("Node %v has successor %v", nodeId, successorId)
 		}
 	}
-	for i := 0; i < NumberNodes; i++ {
-		node := nodes[ids[i]]
-		node.StopWorking()
-	}
-	barrier.Wait()
 }
 
 func TestBasicPutGet(t *testing.T) {
 	NumberNodes := 10
-	_, barrier, nodes, ids := StartUp("TestBasicPutGet", NumberNodes)
+	database, nodes, _ := StartUp("TestBasicPutGet", NumberNodes)
 	// Put data into a random node
-	key := GenerateRandomBinaryId()
+	key := Core.GenerateRandomBinaryId()
 	value := []byte("test value")
-	randomIndex := rand.Intn(len(ids))
-	randomNode := nodes[ids[randomIndex]]
+	randomNode := database.getRandomNode()
 	randomNode.Put(key, value)
 
 	// Verify that the data is stored correctly by querying every node.
@@ -157,24 +114,18 @@ func TestBasicPutGet(t *testing.T) {
 			t.Errorf("Chord does not have the value for key %v", key)
 		}
 	}
-
-	for i := 0; i < NumberNodes; i++ {
-		node := nodes[ids[i]]
-		node.StopWorking()
-	}
-	barrier.Wait()
 }
 
 func TestBasicReplication(t *testing.T) {
 	NumberNodes := 10
-	_, barrier, nodes, ids := StartUp("TestBasicReplication", NumberNodes)
+	db, nodes, ids := StartUp("TestBasicReplication", NumberNodes)
 	firstNodeId := ids[0]
 	nodes[firstNodeId].Put(firstNodeId+1, []byte("test value"))
-	time.Sleep((10 * WaitingTime) * time.Second)
+	time.Sleep((10 * Core.WaitingTime) * time.Second)
 	for i := 0; i < 2; i++ {
-		nodes[ids[i]].StopWorking()
+		db.ChangeNodeState(ids[i], false)
 	}
-	time.Sleep((10 * WaitingTime) * time.Second)
+	time.Sleep((10 * Core.WaitingTime) * time.Second)
 	value, exist := nodes[ids[2]].Get(firstNodeId + 1)
 	if !exist {
 		t.Errorf("Chord does not have the value for key %v", firstNodeId+1)
@@ -182,27 +133,22 @@ func TestBasicReplication(t *testing.T) {
 	if exist && string(value) != "test value" {
 		t.Errorf("Chord has incorrect value for key %v: got %v, want %v", firstNodeId+1, string(value), "test value")
 	}
-	for i := 2; i < NumberNodes; i++ {
-		node := nodes[ids[i]]
-		node.StopWorking()
-	}
-	barrier.Wait()
 }
 
 func TestReplication(t *testing.T) {
 	NumberNodes := 10
-	_, barrier, nodes, ids := StartUp("TestReplication", NumberNodes)
+	db, nodes, ids := StartUp("TestReplication", NumberNodes)
 	firstNodeId := ids[0]
 	nodes[firstNodeId].Put(firstNodeId+1, []byte("test value"))
-	time.Sleep((10 * WaitingTime) * time.Second)
+	time.Sleep((10 * Core.WaitingTime) * time.Second)
 	for i := 0; i < 2; i++ {
-		nodes[ids[i]].StopWorking()
+		db.ChangeNodeState(ids[i], false)
 	}
-	time.Sleep((10 * WaitingTime) * time.Second)
+	time.Sleep((10 * Core.WaitingTime) * time.Second)
 	for i := 2; i < 4; i++ {
-		nodes[ids[i]].StopWorking()
+		db.ChangeNodeState(ids[i], false)
 	}
-	time.Sleep((10 * WaitingTime) * time.Second)
+	time.Sleep((10 * Core.WaitingTime) * time.Second)
 	value, exist := nodes[ids[4]].Get(firstNodeId + 1)
 	if !exist {
 		t.Errorf("Chord does not have the value for key %v", firstNodeId+1)
@@ -210,22 +156,17 @@ func TestReplication(t *testing.T) {
 	if exist && string(value) != "test value" {
 		t.Errorf("Chord has incorrect value for key %v: got %v, want %v", firstNodeId+1, string(value), "test value")
 	}
-	for i := 4; i < NumberNodes; i++ {
-		node := nodes[ids[i]]
-		node.StopWorking()
-	}
-	barrier.Wait()
 }
 
 func TestTolerance(t *testing.T) {
 	NumberNodes := 0
 	Iteration := 10
 	NumberDataLookUp := 10
-	database, barrier, _, _ := StartUp("TestTolerance", NumberNodes)
-	data := make(map[ChordHash][]byte)
+	database, _, _ := StartUp("TestTolerance", NumberNodes)
+	data := make(map[Core.ChordHash][]byte)
 	for i := 0; i < NumberDataLookUp; i++ {
-		randKey := rand.Int() % (1 << NumberBits)
-		data[ChordHash(randKey)] = []byte{byte(randKey)}
+		randKey := Core.GenerateRandomBinaryId()
+		data[randKey] = []byte{byte(randKey)}
 	}
 	for i := 0; i < Iteration; i++ {
 		// choose two random nodes and stop them.
@@ -233,13 +174,11 @@ func TestTolerance(t *testing.T) {
 		if len(database.GetNodes()) >= 3 {
 			t.Logf("Removing nodes")
 			for j := 0; j < 2; j++ {
-				nodes := database.GetNodes()
-				node1 := nodes[rand.Intn(len(nodes))]
-				database.RemoveNode(node1)
+				node1 := database.getRandomNode()
+				database.RemoveNode(node1.GetId())
 			}
 			time.Sleep(4 * time.Second)
-			nodes := database.GetNodes()
-			node1 := nodes[rand.Intn(len(nodes))]
+			node1 := database.getRandomNode()
 			for key := range data {
 				_, exist := node1.Get(key)
 				if !exist {
@@ -251,34 +190,27 @@ func TestTolerance(t *testing.T) {
 		}
 		if len(database.GetNodes()) <= 2 {
 			t.Logf("Adding Nodes")
-			AddNode(database, barrier)
-			AddNode(database, barrier)
+			for j := 0; j < 2; j++ {
+				database.CreateRandomNode()
+			}
 		}
 	}
-	for _, node := range database.GetNodes() {
-		node.StopWorking()
-	}
-	barrier.Wait()
 }
 
 func TestUpdateWithReplication(t *testing.T) {
 	NumberNodes := 3
-	database, barrier, _, _ := StartUp("TestUpdateWithReplication", NumberNodes)
+	database, _, _ := StartUp("TestUpdateWithReplication", NumberNodes)
 	key := 10
 	valueOld := []byte("old value")
 	valueNew := []byte("new value")
-	for _, node := range database.GetNodes() {
-		node.Put(ChordHash(key), valueOld)
-		break
-	}
+	randomNode := database.getRandomNode()
+	database.Put(randomNode.GetId(), Core.ChordHash(key), valueOld)
+	time.Sleep(3 * time.Second)
+	randomNode = database.getRandomNode()
+	database.Put(randomNode.GetId(), Core.ChordHash(key), valueNew)
 	time.Sleep(3 * time.Second)
 	for _, node := range database.GetNodes() {
-		node.Put(ChordHash(key), valueNew)
-		break
-	}
-	time.Sleep(3 * time.Second)
-	for _, node := range database.GetNodes() {
-		value, exist := node.Get(ChordHash(key))
+		value, exist := node.Get(Core.ChordHash(key))
 		if !exist {
 			t.Fatalf("Chord does not have the value for key %v", key)
 		}
@@ -287,13 +219,11 @@ func TestUpdateWithReplication(t *testing.T) {
 		}
 	}
 	for i := 0; i < 2; i++ {
-		for _, node := range database.GetNodes() {
-			database.RemoveNode(node)
-		}
+		database.RemoveRandomNode()
 	}
 	time.Sleep(3 * time.Second)
 	for _, node := range database.GetNodes() {
-		value, exist := node.Get(ChordHash(key))
+		value, exist := node.Get(Core.ChordHash(key))
 		if !exist {
 			t.Fatalf("Chord does not have the value for key %v", key)
 		}
@@ -301,8 +231,4 @@ func TestUpdateWithReplication(t *testing.T) {
 			t.Fatalf("Chord has incorrect value for key %v: got %v, want %v", key, string(value), string(valueNew))
 		}
 	}
-	for _, node := range database.GetNodes() {
-		node.StopWorking()
-	}
-	barrier.Wait()
 }

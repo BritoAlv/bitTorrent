@@ -1,17 +1,19 @@
-package library
+package Core
 
 import (
-	"bittorrent/common"
 	"math/rand/v2"
 	"sort"
 	"strconv"
-	"time"
 )
 
 var usedId = map[ChordHash]bool{}
 
 func generateTaskId() int64 {
 	return rand.Int64()
+}
+
+func toString(A ChordHash) string {
+	return strconv.Itoa(int(A))
 }
 
 func generateRandomKey() ChordHash {
@@ -22,6 +24,17 @@ func Sort(ids []ChordHash) {
 	sort.Slice(ids, func(i, j int) bool {
 		return ids[i] < ids[j]
 	})
+}
+
+func sortKeys(data Store) []ChordHash {
+	keys := make([]ChordHash, 0)
+	for key := range data {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	return keys
 }
 
 func GenerateRandomBinaryId() ChordHash {
@@ -36,8 +49,8 @@ func GenerateRandomBinaryId() ChordHash {
 	return result
 }
 
-// Between : starting from L + 1 in a clockwise order, I can reach M before R + 1.
-func Between(L ChordHash, M ChordHash, R ChordHash) bool {
+// between : starting from L + 1 in a clockwise order, I can reach M before R + 1.
+func between(L ChordHash, M ChordHash, R ChordHash) bool {
 	L = (L + 1) % (1 << NumberBits)
 	for {
 		if L == M {
@@ -51,6 +64,9 @@ func Between(L ChordHash, M ChordHash, R ChordHash) bool {
 	return false
 }
 
-func SetLogDirectoryPath(name string) {
-	common.LogsPath = "./logs/" + name + strconv.Itoa(time.Now().Nanosecond()) + "/"
+func GetRandomFromDict[U comparable, T any](dict map[U]T) *T {
+	for _, value := range dict {
+		return &value
+	}
+	return nil
 }

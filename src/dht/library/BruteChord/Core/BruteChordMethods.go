@@ -1,44 +1,43 @@
-package library
+package Core
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"time"
 )
 
-func (c *BruteChord[T]) Responsible(key ChordHash) bool {
-	return Between(c.GetId(), key, c.GetContact(1).getNodeId())
+func (c *BruteChord[T]) responsible(key ChordHash) bool {
+	return between(c.GetId(), key, c.GetContact(1).GetNodeId())
 }
 
-func (c *BruteChord[T]) SendRequestUntilConfirmation(clientTask ClientTask[T], taskId int64) {
-	c.logger.WriteToFileOK("Calling SendRequestUntilConfirmation Method with request %v and taskId %v", clientTask, taskId)
-	c.SetPendingResponse(taskId, Confirmations{Confirmation: false, Value: nil})
+func (c *BruteChord[T]) sendRequestUntilConfirmation(clientTask ClientTask[T], taskId int64) {
+	c.logger.WriteToFileOK("Calling sendRequestUntilConfirmation Method with request %v and taskId %v", clientTask, taskId)
+	c.setPendingResponse(taskId, confirmations{Confirmation: false, Value: nil})
 	for i := 0; i < Attempts; i++ {
-		confirmation := c.GetPendingResponse(taskId)
+		confirmation := c.getPendingResponse(taskId)
 		if confirmation.Confirmation {
 			c.logger.WriteToFileOK("Received Confirmation for taskId %v", taskId)
 			return
 		}
-		c.ClientChordCommunication.sendRequest(clientTask)
+		c.clientChordCommunication.SendRequest(clientTask)
 		time.Sleep(WaitingTime * time.Second)
 	}
 	c.logger.WriteToFileOK("Didn't receive Confirmation for taskId %v", taskId)
 }
 
-func (c *BruteChord[T]) ReplicateData(successorIndex int, target T) {
-	c.logger.WriteToFileOK("Calling ReplicateData Method with successorIndex %v designated to %v", successorIndex, target)
+func (c *BruteChord[T]) replicateData(successorIndex int, target T) {
+	c.logger.WriteToFileOK("Calling replicateData Method with successorIndex %v designated to %v", successorIndex, target)
 	taskId := generateTaskId()
 	clientTask := ClientTask[T]{
 		Targets: []T{target},
-		Data: ReceiveDataReplicate[T]{
+		Data: receiveDataReplicate[T]{
 			SuccessorIndex: successorIndex,
 			TaskId:         taskId,
-			Data:           c.GetAllData(0),
+			Data:           c.getAllData(0),
 			DataOwner:      c.GetContact(0),
 		},
 	}
-	go c.SendRequestUntilConfirmation(clientTask, taskId)
+	go c.sendRequestUntilConfirmation(clientTask, taskId)
 }
 
 func (c *BruteChord[T]) Get(key ChordHash) ([]byte, bool) {
@@ -46,14 +45,14 @@ func (c *BruteChord[T]) Get(key ChordHash) ([]byte, bool) {
 	taskId := generateTaskId()
 	clientTask := ClientTask[T]{
 		Targets: []T{c.GetContact(1)},
-		Data: GetRequest[T]{
+		Data: getRequest[T]{
 			QueryHost: c.GetContact(0),
 			GetId:     taskId,
 			Key:       key,
 		},
 	}
-	c.SendRequestUntilConfirmation(clientTask, taskId)
-	confirmation := c.GetPendingResponse(taskId)
+	c.sendRequestUntilConfirmation(clientTask, taskId)
+	confirmation := c.getPendingResponse(taskId)
 	return confirmation.Value, confirmation.Confirmation
 }
 
@@ -63,22 +62,22 @@ func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
 	taskId := generateTaskId()
 	taskClient := ClientTask[T]{
 		Targets: []T{c.GetContact(1)},
-		Data: PutRequest[T]{
+		Data: putRequest[T]{
 			QueryHost: c.GetContact(0),
 			PutId:     taskId,
 			Key:       key,
 			Value:     value,
 		},
 	}
-	c.SendRequestUntilConfirmation(taskClient, taskId)
-	confirmation := c.GetPendingResponse(taskId)
+	c.sendRequestUntilConfirmation(taskClient, taskId)
+	confirmation := c.getPendingResponse(taskId)
 	return confirmation.Confirmation
 }
 
 func (c *BruteChord[T]) sendCheckPredecessor() {
 	c.logger.WriteToFileOK("Calling sendCheckPredecessor Method")
-	c.logger.WriteToFileOK("Sending AreYouMyPredecessor Notification to Everyone")
-	c.ClientChordCommunication.sendRequestEveryone(AreYouMyPredecessor[T]{
+	c.logger.WriteToFileOK("Sending areYouMyPredecessor Notification to Everyone")
+	c.clientChordCommunication.SendRequestEveryone(areYouMyPredecessor[T]{
 		Contact:     c.GetContact(0),
 		MySuccessor: c.GetContact(1),
 	})
@@ -86,65 +85,48 @@ func (c *BruteChord[T]) sendCheckPredecessor() {
 
 func (c *BruteChord[T]) sendCheckAlive() {
 	c.logger.WriteToFileOK("Calling sendCheckAlive Method")
-	c.logger.WriteToFileOK("Sending AreYouAliveNotification to %v", c.GetContact(1))
-	c.ClientChordCommunication.sendRequest(ClientTask[T]{
+	c.logger.WriteToFileOK("Sending areYouAliveNotification to %v", c.GetContact(1))
+	c.clientChordCommunication.SendRequest(ClientTask[T]{
 		Targets: []T{c.GetContact(1), c.GetContact(2)},
-		Data:    AreYouAliveNotification[T]{Contact: c.GetContact(0)},
+		Data:    areYouAliveNotification[T]{Contact: c.GetContact(0)},
 	})
 }
 
 func (c *BruteChord[T]) killDead() {
 	c.logger.WriteToFileOK("Calling killDead Method at time %v", time.Now())
 	successor := c.GetContact(1)
-	if !c.Monitor.CheckAlive(successor, 3*WaitingTime) {
+	if !c.monitor.CheckAlive(successor, 3*WaitingTime) {
 		c.logger.WriteToFileOK("Successor %v is Dead", successor)
-		c.DeadContacts = append(c.DeadContacts, successor)
-		c.Monitor.DeleteContact(successor)
-		c.SetContact(c.DefaultSuccessor(), 1)
+		c.monitor.DeleteContact(successor)
+		c.setContact(c.defaultSuccessor(), 1)
 	} else {
 		c.logger.WriteToFileOK("Successor %v is Alive", successor)
 	}
 	successorSuccessor := c.GetContact(2)
-	if !c.Monitor.CheckAlive(successorSuccessor, 3*WaitingTime) {
+	if !c.monitor.CheckAlive(successorSuccessor, 3*WaitingTime) {
 		c.logger.WriteToFileOK("My Successor Successor %v looks Dead to me", successorSuccessor)
-		c.DeadContacts = append(c.DeadContacts, successorSuccessor)
-		c.Monitor.DeleteContact(successorSuccessor)
-		c.SetContact(c.GetContact(1), 2)
+		c.monitor.DeleteContact(successorSuccessor)
+		c.setContact(c.GetContact(1), 2)
 	}
 }
 
-func (c *BruteChord[T]) StopWorking() {
-	c.NotificationChannelServerNode <- nil
-}
-
-func sortKeys(data Store) []ChordHash {
-	keys := make([]ChordHash, 0)
-	for key := range data {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
-	return keys
-}
-
-func (c *BruteChord[T]) State() string {
+func (c *BruteChord[T]) GetState() string {
 	state := "Node: " + strconv.Itoa(int(c.GetId())) + "\n"
-	state += "Successor: " + strconv.Itoa(int(c.GetContact(1).getNodeId())) + "\n"
+	state += "Successor: " + strconv.Itoa(int(c.GetContact(1).GetNodeId())) + "\n"
 	state += "Successor Data Replicas Are: " + "\n"
 
-	successorData := c.GetAllData(1)
-	successorSuccessorData := c.GetAllData(2)
-	ownData := c.GetAllData(0)
+	successorData := c.getAllData(1)
+	successorSuccessorData := c.getAllData(2)
+	ownData := c.getAllData(0)
 	for _, key := range sortKeys(successorData) {
 		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorData[key]) + "\n"
 	}
-	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetContact(2).getNodeId())) + "\n"
+	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetContact(2).GetNodeId())) + "\n"
 	state += "SuccessorSuccessor Data Replica:" + "\n"
 	for _, key := range sortKeys(successorSuccessorData) {
 		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorSuccessorData[key]) + "\n"
 	}
-	state += "Predecessor: " + strconv.Itoa(int(c.GetContact(-1).getNodeId())) + "\n"
+	state += "Predecessor: " + strconv.Itoa(int(c.GetContact(-1).GetNodeId())) + "\n"
 	state += "Data stored:\n"
 	for _, key := range sortKeys(ownData) {
 		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", ownData[key]) + "\n"

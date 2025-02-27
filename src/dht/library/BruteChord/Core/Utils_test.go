@@ -1,4 +1,4 @@
-package library
+package Core
 
 import (
 	"testing"
@@ -37,8 +37,8 @@ func TestBetween(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Between(tt.args.L, tt.args.M, tt.args.R); got != tt.want {
-				t.Errorf("Between() = %v, want %v", got, tt.want)
+			if got := between(tt.args.L, tt.args.M, tt.args.R); got != tt.want {
+				t.Errorf("between() = %v, want %v", got, tt.want)
 			}
 		})
 	}

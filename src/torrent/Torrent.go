@@ -15,7 +15,7 @@ import (
 
 type Torrent struct {
 	Announce    string   // Location of the tracker
-	InfoHash    [20]byte // Info-hash of the .torrent file
+	InfoHash    [20]byte // info-hash of the .torrent file
 	Name        string   // Suggested name to save the file (or directory) as. It is purely advisory.
 	PieceLength int64    // The number of bytes in each piece the file is split into
 	Pieces      []byte

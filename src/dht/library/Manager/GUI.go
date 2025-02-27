@@ -1,6 +1,7 @@
-package library
+package Manager
 
 import (
+	"bittorrent/dht/library/BruteChord/Core"
 	"fmt"
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
@@ -8,30 +9,31 @@ import (
 	"fyne.io/fyne/widget"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 )
 
-type LabelCard struct {
+type labelCard struct {
 	Label *widget.Label
 	Card  *widget.Card
 }
 
-type GUI struct {
-	db             *DataBaseInMemory
+type GUI[T Core.Contact] struct {
+	manager        IManagerRPC[T]
 	window         fyne.Window
-	nodeLabelsCard map[int]LabelCard // Map of node ID -> Label for dynamic updates
-	Grid           *fyne.Container
+	nodeLabelsCard map[Core.ChordHash]labelCard // Map of node ID -> Label for dynamic updates
+	grid           *fyne.Container
 	paused         bool
 	pausedButton   *widget.Button
 }
 
-func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
-	gui := &GUI{
-		db:             db,
+func NewGUI[T Core.Contact](manager *IManagerRPC[T]) *GUI[T] {
+	a := app.New() // Create a new application
+	window := a.NewWindow("Chord Network State")
+	gui := &GUI[T]{
+		manager:        *manager,
 		window:         window,
-		nodeLabelsCard: make(map[int]LabelCard),
-		Grid:           container.NewGridWithColumns(4),
+		nodeLabelsCard: make(map[Core.ChordHash]labelCard),
+		grid:           container.NewGridWithColumns(4),
 		paused:         false,
 	}
 
@@ -44,7 +46,7 @@ func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 		}
 	})
 
-	content := container.NewVBox(gui.pausedButton, gui.Grid)
+	content := container.NewVBox(gui.pausedButton, gui.grid)
 	scrollContainer := container.NewScroll(content)
 	window.SetContent(scrollContainer)
 	window.Resize(fyne.NewSize(800, 600))
@@ -52,26 +54,26 @@ func NewGUI(db *DataBaseInMemory, window fyne.Window) *GUI {
 	return gui
 }
 
-func (g *GUI) UpdateState() {
+func (g *GUI[T]) updateState() {
 	for {
 		time.Sleep(2 * time.Second)
 		if g.paused {
 			continue
 		}
-		stateMap := g.PrepareState()
+		stateMap := g.prepareState()
 
 		// Get the keys and sort them
-		keys := make([]int, 0, len(stateMap))
+		keys := make([]Core.ChordHash, 0, len(stateMap))
 		for k := range stateMap {
 			keys = append(keys, k)
 		}
-		sort.Ints(keys)
+		Core.Sort(keys)
 
 		// Iterate over the sorted keys
 		for _, nodeID := range keys {
 			state := stateMap[nodeID]
-			if labelCard, exists := g.nodeLabelsCard[nodeID]; exists {
-				labelCard.Label.SetText(state)
+			if labelC, exists := g.nodeLabelsCard[nodeID]; exists {
+				labelC.Label.SetText(state)
 			} else {
 				// Create a new card for the node if it doesn't exist
 				label := widget.NewLabel(state)
@@ -80,62 +82,44 @@ func (g *GUI) UpdateState() {
 				fixedSizeContainer.SetMinSize(fyne.NewSize(250, 250))
 
 				card := widget.NewCard(fmt.Sprintf("Node %d", nodeID), "", fixedSizeContainer)
-				g.nodeLabelsCard[nodeID] = LabelCard{
+				g.nodeLabelsCard[nodeID] = labelCard{
 					Label: label,
 					Card:  card,
 				}
-				g.Grid.Add(card)
+				g.grid.Add(card)
 
 			}
 		}
 		for nodeID, labelCard := range g.nodeLabelsCard {
 			if _, exists := stateMap[nodeID]; !exists {
-				g.Grid.Remove(labelCard.Card)
+				g.grid.Remove(labelCard.Card)
 				delete(g.nodeLabelsCard, nodeID)
 			}
 		}
-		objects := g.Grid.Objects
-		g.Grid.Objects = nil
+		objects := g.grid.Objects
+		g.grid.Objects = nil
 		sort.Slice(objects, func(i, j int) bool {
 			one, _ := strconv.Atoi(objects[i].(*widget.Card).Title[5:])
 			two, _ := strconv.Atoi(objects[j].(*widget.Card).Title[5:])
-
 			return one < two
 		})
 		for _, object := range objects {
-			g.Grid.Add(object)
+			g.grid.Add(object)
 		}
-
 		g.window.Content().Refresh()
 	}
 }
 
-func (g *GUI) PrepareState() map[int]string {
-	nodes := g.db.GetNodes()
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].GetId() < nodes[j].GetId()
-	})
-	stateMap := make(map[int]string)
-	for _, node := range nodes {
-		stateMap[int(node.GetId())] = g.ShowNodeState(node)
+func (g *GUI[T]) prepareState() map[Core.ChordHash]string {
+	result := make(map[Core.ChordHash]string)
+	for _, key := range g.manager.GetNodesIds() {
+		result[key] = g.manager.GetNodeStateRPC(key)
 	}
-	return stateMap
+	return result
 }
 
-func (g *GUI) ShowNodeState(node *BruteChord[InMemoryContact]) string {
-	return node.State()
-}
-
-func StartGUI(database *DataBaseInMemory, barrier *sync.WaitGroup) {
-	a := app.New()
-	fmt.Println("App Started")              // Create a new application
-	w := a.NewWindow("Chord Network State") // Create a new window
-	gui := NewGUI(database, w)              // Create the GUI
-	// Run state updates in a separate goroutine
-	barrier.Add(1)
-	go func() {
-		gui.UpdateState()
-		barrier.Done()
-	}()
-	w.ShowAndRun()
+func (g *GUI[T]) Start() {
+	// Create a new window // Run state updates in a separate goroutine
+	go g.updateState()
+	g.window.ShowAndRun()
 }

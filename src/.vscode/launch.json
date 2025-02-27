@@ -2,6 +2,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Launch DHT GUI",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/dht/Main.go",
+            "env": {},
+            "args": ["-race"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Launch Server",
             "type": "go",
             "request": "launch",
