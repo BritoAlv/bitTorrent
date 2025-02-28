@@ -1,8 +1,8 @@
-package library
+package Core
 
 type Client[T Contact] interface {
-	sendRequest(task ClientTask[T])
-	sendRequestEveryone(data Notification[T])
+	SendRequest(task ClientTask[T])
+	SendRequestEveryone(data Notification[T])
 }
 type ClientTask[T Contact] struct {
 	Targets []T

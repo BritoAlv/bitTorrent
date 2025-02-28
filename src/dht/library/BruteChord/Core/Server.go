@@ -1,4 +1,4 @@
-package library
+package Core
 
 /*
 The Server will be doing the function of listening, so If someone wants to communicate with a Node it should to with
@@ -17,5 +17,5 @@ a method for handling that.
 
 type Server[T Contact] interface {
 	GetContact() T
-	SetData(channel chan Notification[T], NodeId [NumberBits]uint8)
+	SetData(channel chan Notification[T], NodeId ChordHash)
 }

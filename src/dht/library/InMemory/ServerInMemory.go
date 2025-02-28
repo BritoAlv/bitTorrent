@@ -1,15 +1,15 @@
-package library
+package InMemory
 
 import (
 	"bittorrent/common"
-	"fmt"
+	"bittorrent/dht/library/BruteChord/Core"
 )
 
 type ServerInMemory struct {
 	DataBase             *DataBaseInMemory
 	ServerId             string
-	NodeId               [NumberBits]uint8
-	ChannelCommunication chan Notification[InMemoryContact]
+	NodeId               Core.ChordHash
+	ChannelCommunication chan Core.Notification[ContactInMemory]
 	Logger               common.Logger
 }
 
@@ -22,16 +22,16 @@ func NewServerInMemory(database *DataBaseInMemory, name string) *ServerInMemory 
 	}
 }
 
-func (s *ServerInMemory) GetContact() InMemoryContact {
-	contact := InMemoryContact{
+func (s *ServerInMemory) GetContact() ContactInMemory {
+	contact := ContactInMemory{
 		Id:     s.ServerId,
 		NodeId: s.NodeId,
 	}
-	s.Logger.WriteToFileOK(fmt.Sprintf("Calling GetContact Method returning %v", contact))
+	s.Logger.WriteToFileOK("Calling GetContact Method returning %v", contact)
 	return contact
 }
 
-func (s *ServerInMemory) SetData(channel chan Notification[InMemoryContact], Id [NumberBits]uint8) {
+func (s *ServerInMemory) SetData(channel chan Core.Notification[ContactInMemory], Id Core.ChordHash) {
 	s.ChannelCommunication = channel
 	s.NodeId = Id
 }

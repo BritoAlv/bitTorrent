@@ -1,4 +1,0 @@
-- RUN command is executed at build time and its results are commited, not when the container is started.
-- CMD provides default for executing a container. This default can be replaced.
-- A docker file when is built, it creates an image, when this image is run it creates a container.
-- Output of CMD goes to the standard input/output.
