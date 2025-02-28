@@ -1,8 +1,8 @@
+#!/bin/sh
+
 mkdir bin
 mkdir -p bin/data/downloads
-cp -r src/gui/frontend bin
+cp -r src/gui/static bin
 
-cd src/gui/
-go build server.go
-cd ../../
-mv src/gui/server bin
+cd src/gui
+go build -o ../../bin/ server.go
