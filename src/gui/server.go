@@ -5,9 +5,38 @@ import (
 	"bittorrent/gui/backend"
 	"fmt"
 	"net/http"
+	"sync"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		hostSite()
+	}()
+
+	go func() {
+		defer wg.Done()
+		// deployApi()
+	}()
+
+	wg.Wait()
+}
+
+func hostSite() {
+	router := gin.Default()
+
+	router.Static("/", "./frontend/static")
+	router.Static("/index", "./frontend/static")
+
+	router.Run(":9090")
+}
+
+func deployApi() {
 	// Create a new request multiplexer
 	// Take incoming requests and dispatch them to the matching handlers
 	requestMultiplexer := http.NewServeMux()

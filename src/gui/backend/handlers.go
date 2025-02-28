@@ -144,7 +144,7 @@ func getBody(body io.ReadCloser) ([]byte, error) {
 	return buffer[:totalRead], nil
 }
 
-func respond(responseWriter io.Writer, response interface{}) {
+func respond(responseWriter io.Writer, response any) {
 	responseBytes, err := json.MarshalIndent(response, "", "")
 	if err != nil {
 		respond(responseWriter, BooleanResponse{
