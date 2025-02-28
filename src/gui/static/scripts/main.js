@@ -25,7 +25,7 @@ async function updateStatus() {
         const statusPeers = document.querySelector(`#status-peers-${id}`);
         const statusDownload = document.querySelector(`#status-download-${id}`);
         
-        const response = await get(API_URL + "update?id=" + id);
+        const response = await get(API_URL + "update/" + id);
 
         if (response.Successful) {
             if (response.Progress == 1) {
@@ -46,7 +46,7 @@ async function stop(torrentPath) {
 
     const statusPeers = document.querySelector(`#status-peers-${id}`);
     
-    const response = await get(API_URL + `kill?id=${id}`);
+    const response = await get(API_URL + `kill/${id}`);
     
     if (response.Successful) {
         statusPeers.innerHTML = "-1";
