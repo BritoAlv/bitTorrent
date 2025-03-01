@@ -27,6 +27,7 @@ async function updateStatus() {
         
         const response = await get(API_URL + "update/" + id);
 
+        console.log(`Update response: \n${response}`);
         if (response.Successful) {
             if (response.Progress == 1) {
                 statusDownload.innerHTML = "Seed";
@@ -48,6 +49,7 @@ async function stop(torrentPath) {
     
     const response = await get(API_URL + `kill/${id}`);
     
+    console.log(`Kill response: \n${response}`);
     if (response.Successful) {
         statusPeers.innerHTML = "-1";
     } else {
@@ -86,6 +88,7 @@ async function download(torrentPath) {
 
     const response = await post(API_URL+"download", downloadRequest);
     
+    console.log(`Download response: \n${response}`);
     // TODO: Get .torrent file's name
     if (response.Successful) {
         statusList.innerHTML += 
@@ -132,6 +135,7 @@ async function download(torrentPath) {
             torrents.delete(path);
         });
     } else {
+        torrents.delete(torrentPath)
         errorMessage.innerHTML = response.ErrorMessage;
     }
 }
@@ -148,6 +152,3 @@ addTorrentButton.addEventListener("click", async () => {
 });
 
 updateStatusPeriodically()
-
-// let s = 
-//         // statusList.removeChild(s)

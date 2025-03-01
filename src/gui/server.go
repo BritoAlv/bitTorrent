@@ -35,7 +35,7 @@ func main() {
 	// Host files
 	router.Static("/home", "./static")
 
-	err := router.Run(":9090")
+	err := router.Run(":8080")
 	if err != nil {
 		log.Println("Server could not be started")
 	}
@@ -75,7 +75,7 @@ func (handler *apiHandler) download(ctx *gin.Context) {
 	var request downloadRequest
 	err := ctx.ShouldBindJSON(&request)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, booleanResponse{
+		ctx.IndentedJSON(http.StatusOK, booleanResponse{
 			Successful:   false,
 			ErrorMessage: err.Error(),
 		})
@@ -86,10 +86,11 @@ func (handler *apiHandler) download(ctx *gin.Context) {
 	if ipAddress == "" {
 		ipAddress = "localhost"
 	}
+
 	_peer, err := startPeer(request.Id, request.TorrentPath, request.DownloadPath, ipAddress, request.EncryptionLevel)
 	if err != nil {
 		fmt.Println("API: Error: " + err.Error())
-		ctx.IndentedJSON(http.StatusInternalServerError, booleanResponse{
+		ctx.IndentedJSON(http.StatusOK, booleanResponse{
 			Successful:   false,
 			ErrorMessage: err.Error(),
 		})
@@ -108,7 +109,7 @@ func (handler *apiHandler) download(ctx *gin.Context) {
 func (handler *apiHandler) update(ctx *gin.Context) {
 	id, found := ctx.Params.Get("id")
 	if !found {
-		ctx.IndentedJSON(http.StatusBadRequest, updateResponse{
+		ctx.IndentedJSON(http.StatusOK, updateResponse{
 			booleanResponse: booleanResponse{
 				Successful:   false,
 				ErrorMessage: "Expecting 'id' query",
@@ -121,7 +122,7 @@ func (handler *apiHandler) update(ctx *gin.Context) {
 
 	_peer, contained := handler.Peers[id]
 	if !contained {
-		ctx.IndentedJSON(http.StatusNotFound, updateResponse{
+		ctx.IndentedJSON(http.StatusOK, updateResponse{
 			booleanResponse: booleanResponse{
 				Successful:   false,
 				ErrorMessage: "Non existing 'id'",
@@ -147,7 +148,7 @@ func (handler *apiHandler) update(ctx *gin.Context) {
 func (handler *apiHandler) kill(ctx *gin.Context) {
 	id, found := ctx.Params.Get("id")
 	if !found {
-		ctx.IndentedJSON(http.StatusBadRequest, booleanResponse{
+		ctx.IndentedJSON(http.StatusOK, booleanResponse{
 			Successful:   false,
 			ErrorMessage: "Expecting 'id' query",
 		})
@@ -156,7 +157,7 @@ func (handler *apiHandler) kill(ctx *gin.Context) {
 
 	_peer, contained := handler.Peers[id]
 	if !contained {
-		ctx.IndentedJSON(http.StatusNotFound, booleanResponse{
+		ctx.IndentedJSON(http.StatusOK, booleanResponse{
 			Successful:   false,
 			ErrorMessage: "Non existing 'id'",
 		})

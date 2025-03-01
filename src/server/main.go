@@ -1,18 +1,20 @@
 package main
 
 import (
+	"bittorrent/dht/library/WithSocket"
 	"bittorrent/server/TrackerNode"
-	"flag"
 	"fmt"
 	"sync"
 )
 
 func main() {
-	var ip, port string
-	flag.StringVar(&ip, "ip", "127.0.0.1", "IP address to bind the tracker")
-	flag.StringVar(&port, "port", "8080", "Port to bind the tracker")
-	flag.Parse()
-	// Create a tracker somewhere.
+
+	ip, _ := WithSocket.GetIpFromInterface("eth0")
+	if ip == "" {
+		ip = "localhost"
+	}
+	port := "8080"
+
 	var tracker1 = TrackerNode.NewHttpTracker(ip+":"+port, "MyHTTPServer")
 	fmt.Printf("Tracker Location is : %s\n", tracker1.SaveTorrent())
 	var wg sync.WaitGroup
