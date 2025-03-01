@@ -133,6 +133,7 @@ func receiveFromMulticast(channel chan [2]string, ip string, port string) {
 		serverIp, serverPort := message[0], message[1]
 		channel <- [2]string{serverIp, serverPort}
 		log.Printf("Received message: %v:%v \n", serverIp, serverPort)
+		listener.Close()
 		break
 	}
 }
