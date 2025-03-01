@@ -90,7 +90,7 @@ func (a *Announcer) sendAnnouncesLogic() {
 		conn, err := net.Dial("udp", broadcastAddr+":"+port)
 		if err != nil {
 			a.logger.WriteToFileError("Error dialing: %v", err)
-			return
+			continue
 		}
 		message := a.Contact
 		var buf bytes.Buffer
@@ -98,18 +98,18 @@ func (a *Announcer) sendAnnouncesLogic() {
 		err = encoder.Encode(message)
 		if err != nil {
 			a.logger.WriteToFileError("Error encoding: %v", err)
-			return
+			continue
 		}
 		_, err = conn.Write(buf.Bytes())
 		if err != nil {
 			a.logger.WriteToFileError("Error writing: %v", err)
-			return
+			continue
 		}
 		a.logger.WriteToFileOK("Broadcast Message : %v,  Sent to %v from %v", message, broadcastAddr, conn.LocalAddr())
 		err = conn.Close()
 		if err != nil {
 			a.logger.WriteToFileError("Error closing: %v", err)
-			return
+			continue
 		}
 	}
 }

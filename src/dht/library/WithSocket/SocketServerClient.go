@@ -50,12 +50,13 @@ func (s *SocketServerClient) SendRequest(task Core.ClientTask[SocketContact]) {
 		conn, err := net.Dial("tcp", target.Addr.String())
 		if err != nil {
 			s.logger.WriteToFileError("Error dialing the connection %v", err)
+			continue
 		}
 		encoder := gob.NewEncoder(conn)
 		err = encoder.Encode(&task.Data)
 		if err != nil {
 			s.logger.WriteToFileError("Error encoding the data %v", err)
-			panic(err)
+			continue
 		}
 		err = conn.Close()
 	}
@@ -71,6 +72,7 @@ func (s *SocketServerClient) listen() {
 		conn, err := s.listenerTCP.Accept()
 		if err != nil {
 			s.logger.WriteToFileError("Error while accepting connection %v", err)
+			continue
 		}
 		go s.handleConn(conn)
 	}
@@ -82,7 +84,7 @@ func (s *SocketServerClient) handleConn(conn net.Conn) {
 	err := decoder.Decode(&notification)
 	if err != nil {
 		s.logger.WriteToFileError("Error decoding the notification %v", err)
-		panic(err)
+		return
 	}
 	s.communicationChannel <- notification
 	err = conn.Close()
