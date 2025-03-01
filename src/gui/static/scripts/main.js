@@ -81,7 +81,6 @@ async function download(torrentPath) {
         id,
         torrentPath,
         "./data/downloads",
-        "127.0.0.1",
         false,
     );
 

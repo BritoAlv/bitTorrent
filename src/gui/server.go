@@ -2,6 +2,7 @@ package main
 
 import (
 	"bittorrent/client/peer"
+	"bittorrent/dht/library/WithSocket"
 	"bittorrent/torrent"
 	"fmt"
 	"log"
@@ -45,7 +46,6 @@ type downloadRequest struct {
 	Id              string
 	TorrentPath     string
 	DownloadPath    string
-	IpAddress       string
 	EncryptionLevel bool
 }
 
@@ -82,7 +82,11 @@ func (handler *apiHandler) download(ctx *gin.Context) {
 		return
 	}
 
-	_peer, err := startPeer(request.Id, request.TorrentPath, request.DownloadPath, request.IpAddress, request.EncryptionLevel)
+	ipAddress, _ := WithSocket.GetIpFromInterface("eth0")
+	if ipAddress == "" {
+		ipAddress = "localhost"
+	}
+	_peer, err := startPeer(request.Id, request.TorrentPath, request.DownloadPath, ipAddress, request.EncryptionLevel)
 	if err != nil {
 		fmt.Println("API: Error: " + err.Error())
 		ctx.IndentedJSON(http.StatusInternalServerError, booleanResponse{
