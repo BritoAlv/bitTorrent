@@ -113,7 +113,7 @@ func (g *GUI[T]) updateState() {
 func (g *GUI[T]) prepareState() map[Core.ChordHash]string {
 	result := make(map[Core.ChordHash]string)
 	for _, key := range g.manager.GetNodesIds() {
-		result[key] = g.manager.GetNodeStateRPC(key)
+		result[key] = g.manager.GetNodeStateRPC(key) // this is an RPC.
 	}
 	return result
 }
