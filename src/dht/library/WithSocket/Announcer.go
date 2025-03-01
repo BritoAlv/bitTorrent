@@ -3,6 +3,7 @@ package WithSocket
 import (
 	"bittorrent/common"
 	"bittorrent/dht/library/BruteChord/Core"
+	"bittorrent/dht/library/MonitorHand"
 	"bytes"
 	"encoding/gob"
 	"fmt"
@@ -19,15 +20,17 @@ type Announcer struct {
 	Contact         SocketContact
 	lock            sync.Mutex
 	logger          common.Logger
+	monitor         Core.Monitor[SocketContact]
 }
 
 func NewAnnouncer(contact SocketContact) *Announcer {
 	var announcer Announcer
 	announcer.Contact = contact
+	announcer.monitor = MonitorHand.NewMonitorHand[SocketContact]("MonitorAnnouncer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
 	announcer.lock = sync.Mutex{}
 	announcer.activeKnown = make(map[Core.ChordHash]SocketContact)
 	announcer.logger = *common.NewLogger("Announcer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
-	_, broadIP := getIPFromInterface()
+	_, broadIP := GetIpFromInterface(networkInterface)
 	add, err := net.ResolveUDPAddr("udp", broadIP+":"+usedPorts[rand.Int()%len(usedPorts)])
 	if err != nil {
 		announcer.logger.WriteToFileError("Error resolving UDP address: %v", err)
@@ -49,6 +52,13 @@ func (a *Announcer) addContact(contact SocketContact) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	a.activeKnown[contact.GetNodeId()] = contact
+	a.monitor.AddContact(contact, time.Now())
+	for _, knownContact := range a.activeKnown {
+		if !a.monitor.CheckAlive(knownContact, 20) {
+			delete(a.activeKnown, knownContact.GetNodeId())
+			a.monitor.DeleteContact(knownContact)
+		}
+	}
 }
 
 func (a *Announcer) GetContacts() []SocketContact {
@@ -85,7 +95,7 @@ func (a *Announcer) listenAnnounces() {
 }
 
 func (a *Announcer) sendAnnouncesLogic() {
-	_, broadcastAddr := getIPFromInterface()
+	_, broadcastAddr := GetIpFromInterface(networkInterface)
 	for _, port := range usedPorts {
 		conn, err := net.Dial("udp", broadcastAddr+":"+port)
 		if err != nil {
