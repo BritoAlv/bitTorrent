@@ -2,6 +2,7 @@ package Core
 
 import (
 	"bittorrent/common"
+	BruteChord2 "bittorrent/dht/library/BruteChord"
 	"reflect"
 	"sync"
 	"time"
@@ -10,14 +11,14 @@ import (
 type BruteChord[T Contact] struct {
 	id                            ChordHash // The ID of the Node.
 	info                          [3]contactWithData[T]
-	predecessorRef                T                       // Keep Track of the Predecessor, due to replication.
-	pendingResponses              map[int64]confirmations // I need to check if someone answered the request I sent.
-	lock                          sync.Mutex              // The Pointers shouldn't be updated concurrently.
-	monitor                       Monitor[T]              // To Keep Track of HeartBeats.
-	notificationChannelServerNode chan Notification[T]    // A channel that will be intermediary between the Server and the Node.
-	serverChordCommunication      Server[T]               // A Server that will receive notifications from contacts of type T.
-	clientChordCommunication      Client[T]               // A Client that will send notifications to others nodes of type T.
-	logger                        common.Logger           // To Log Everything The Node is doing.
+	predecessorRef                T                                         // Keep Track of the Predecessor, due to replication.
+	pendingResponses              BruteChord2.SafeMap[int64, confirmations] // I need to check if someone answered the request I sent.
+	lock                          sync.Mutex                                // The Pointers shouldn't be updated concurrently.
+	monitor                       Monitor[T]                                // To Keep Track of HeartBeats.
+	notificationChannelServerNode chan Notification[T]                      // A channel that will be intermediary between the Server and the Node.
+	serverChordCommunication      Server[T]                                 // A Server that will receive notifications from contacts of type T.
+	clientChordCommunication      Client[T]                                 // A Client that will send notifications to others nodes of type T.
+	logger                        common.Logger                             // To Log Everything The Node is doing.
 	isWorking                     bool
 }
 
@@ -31,7 +32,7 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.serverChordCommunication.SetData(node.notificationChannelServerNode, node.id)
 	node.clientChordCommunication = clientChordCommunication
 	node.monitor = monitor
-	node.pendingResponses = make(map[int64]confirmations)
+	node.pendingResponses = BruteChord2.SafeMap[int64, confirmations]{}
 	node.info[0].Contact = serverChordCommunication.GetContact()
 	for i := 0; i < 3; i++ {
 		node.info[i].Data = make(Store)
@@ -95,9 +96,7 @@ func (c *BruteChord[T]) setData(key ChordHash, value []byte, index int) {
 }
 
 func (c *BruteChord[T]) setPendingResponse(taskId int64, confirmation confirmations) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.pendingResponses[taskId] = confirmation
+	c.pendingResponses.Set(taskId, confirmation)
 }
 
 func (c *BruteChord[T]) addNewData(data Store, index int) {
@@ -107,9 +106,7 @@ func (c *BruteChord[T]) addNewData(data Store, index int) {
 }
 
 func (c *BruteChord[T]) getPendingResponse(taskId int64) confirmations {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	confirmation, _ := c.pendingResponses[taskId]
+	confirmation, _ := c.pendingResponses.Get(taskId)
 	return confirmation
 }
 

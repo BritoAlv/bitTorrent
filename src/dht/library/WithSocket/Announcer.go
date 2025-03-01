@@ -51,7 +51,7 @@ func (a *Announcer) addContact(contact SocketContact) {
 	a.activeKnown.Set(contact.GetNodeId(), contact)
 	a.monitor.AddContact(contact, time.Now())
 	for _, knownContact := range a.activeKnown.GetValues() {
-		if !a.monitor.CheckAlive(knownContact, 20) {
+		if !a.monitor.CheckAlive(knownContact, 3) {
 			a.activeKnown.Delete(knownContact.GetNodeId())
 			a.monitor.DeleteContact(knownContact)
 		}
