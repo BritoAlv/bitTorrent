@@ -1,13 +1,27 @@
 package main
 
 import (
-	"bittorrent/dht/library/InMemory"
-	"bittorrent/dht/library/Manager"
-	"bittorrent/dht/library/Scenarios"
+	"bittorrent/common"
+	"bittorrent/dht/library/BruteChord/Core"
+	"bittorrent/dht/library/MonitorHand"
+	"bittorrent/dht/library/WithSocket"
+	"encoding/gob"
+	"net"
+	"strconv"
+	"time"
 )
 
 func main() {
-	manager := Scenarios.ScenarioEasy()
-	gui := Manager.NewGUI[InMemory.ContactInMemory](&manager)
-	gui.Start()
+	gob.Register(&net.TCPAddr{})
+	Core.RegisterNotifications[WithSocket.SocketContact]()
+	common.SetLogDirectoryPath("./SocketServerClient")
+	randomId := Core.GenerateRandomBinaryId()
+	randomIdStr := strconv.Itoa(int(randomId))
+	socketServerClient := WithSocket.NewSocketServerClient(randomId)
+	monitorHand := MonitorHand.NewMonitorHand[WithSocket.SocketContact]("Monitor" + randomIdStr)
+	nodeSocket := Core.NewBruteChord(socketServerClient, socketServerClient, monitorHand, randomId)
+	for {
+		time.Sleep(5 * time.Second)
+		println(nodeSocket.GetId())
+	}
 }
