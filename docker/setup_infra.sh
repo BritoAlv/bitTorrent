@@ -24,7 +24,7 @@ fi
 
 # check router:base docker image existence 
 
-docker image inspect router >/dev/null 2>&1
+docker image inspect router:base >/dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "Image router:base exists."
 else
@@ -34,7 +34,7 @@ fi
 
 # check router docker image existence 
 
-docker image inspect router >/dev/null 2>&1
+docker image inspect router:mcproxy >/dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "Image router exists."
 else
