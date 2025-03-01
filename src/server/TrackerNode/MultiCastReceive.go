@@ -68,7 +68,7 @@ func receiveFromMulticast(ip string, port string) {
 				log.Println("Failed to send message to client:", err)
 				return
 			}
-			log.Println("Sent message to client")
+			log.Printf("Sent message to client: %v:%v\n", ip, port)
 		}()
 	}
 }
