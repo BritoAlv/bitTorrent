@@ -2,7 +2,9 @@ package WithSocket
 
 import (
 	"bittorrent/dht/library/BruteChord/Core"
+	"bittorrent/dht/library/MonitorHand"
 	"net"
+	"strconv"
 )
 
 type SocketContact struct {
@@ -16,4 +18,13 @@ func NewSocketContact(nodeId Core.ChordHash, addr net.Addr) SocketContact {
 
 func (s SocketContact) GetNodeId() Core.ChordHash {
 	return s.NodeId
+}
+
+func NewNodeSocket() *Core.BruteChord[SocketContact] {
+	randomId := Core.GenerateRandomBinaryId()
+	randomIdStr := strconv.Itoa(int(randomId))
+	socketServerClient := NewSocketServerClient(randomId)
+	monitorHand := MonitorHand.NewMonitorHand[SocketContact]("Monitor" + randomIdStr)
+	nodeSocket := Core.NewBruteChord[SocketContact](socketServerClient, socketServerClient, monitorHand, randomId)
+	return nodeSocket
 }

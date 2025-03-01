@@ -2,43 +2,47 @@ package TrackerNode
 
 import (
 	"bittorrent/common"
+	"bittorrent/dht/library/BruteChord/Core"
+	"bittorrent/dht/library/WithSocket"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 )
 
 type HttpTracker struct {
-	peers    map[[20]byte]map[string]common.Address
-	logger   common.Logger
-	lock     sync.Locker
-	Location string
+	node   Core.BruteChord[WithSocket.SocketContact]
+	logger common.Logger
+	lock   sync.Locker
+	Ip     string
+	Port   string
 }
 
-func NewHttpTracker(url string, name string) TrackerNode {
-	return &HttpTracker{
-		peers:    make(map[[20]byte]map[string]common.Address),
-		logger:   *common.NewLogger(fmt.Sprintf("HTTTracker%s.log", name)),
-		lock:     &sync.Mutex{},
-		Location: url,
-	}
+func NewHttpTracker(name string) *HttpTracker {
+	var httpTracker HttpTracker
+	httpTracker.logger = *common.NewLogger(fmt.Sprintf("HTTTracker%s.log", name))
+	httpTracker.lock = &sync.Mutex{}
+	ip, _ := WithSocket.GetIpFromInterface("eth0")
+	httpTracker.Ip = ip
+	httpTracker.Port = "8080"
+	go receiveFromMulticast(httpTracker.Ip, httpTracker.Port)
+	go httpTracker.Listen()
+	httpTracker.node = *WithSocket.NewNodeSocket()
+	return &httpTracker
 }
 
-func (tracker *HttpTracker) SaveTorrent() string {
-	return "http://" + tracker.Location + "/announce"
-}
-
-func (tracker *HttpTracker) Listen() error {
+func (tracker *HttpTracker) Listen() {
 	http.HandleFunc("/announce", tracker.handlePeersQuery)
-	err := http.ListenAndServe(tracker.Location, nil)
+	address := tracker.Ip + ":" + tracker.Port
+	err := http.ListenAndServe(address, nil)
 	if err != nil {
 		tracker.logger.WriteToFileError("Listen and Serve failed %s", err.Error())
-		return err
+		os.Exit(1)
 	}
-	tracker.logger.WriteToFileOK("Tracker listening on " + tracker.Location)
-	return nil
+	tracker.logger.WriteToFileOK("Tracker listening on " + address)
 }
 
 /*
@@ -85,7 +89,7 @@ func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Requ
 	if _, exist := r.Form[common.Ip]; !exist {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
-			tracker.logger.WriteToFileError("Failed to split host and port from remote address: %s", err.Error())
+			tracker.logger.WriteToFileError("Failed to split host and Port from remote address: %s", err.Error())
 			response.FailureReason = err.Error()
 			tracker.sendResponse(w, response)
 			return
@@ -164,20 +168,27 @@ func (tracker *HttpTracker) solve(request common.TrackRequest) (common.TrackResp
 	ans.FailureReason = ""
 	ans.Interval = 5
 
-	if _, exist := tracker.peers[request.InfoHash]; !exist {
+	infoHashToChordKey := tracker.InfoHashToChordKey(request.InfoHash)
+
+	_, exist := tracker.node.Get(infoHashToChordKey)
+	if !exist {
 		tracker.logger.WriteToFileOK("New entry for info hash %v", request.InfoHash)
-		tracker.peers[request.InfoHash] = make(map[string]common.Address)
+		tracker.node.Put(infoHashToChordKey, tracker.EncodePeerList(map[string]common.Address{}))
 	}
 
-	if _, exist := tracker.peers[request.InfoHash][request.PeerId]; !exist {
+	valueInfoHash, _ := tracker.node.Get(infoHashToChordKey)
+	peersInfoHash := tracker.DecodePeerList(valueInfoHash)
+
+	if _, exist := peersInfoHash[request.PeerId]; !exist {
 		tracker.logger.WriteToFileOK("New entry for peer id %v", request.PeerId)
-		tracker.peers[request.InfoHash][request.PeerId] = common.Address{
+		peersInfoHash[request.PeerId] = common.Address{
 			Ip:   request.Ip,
 			Port: request.Port,
 		}
+		tracker.node.Put(infoHashToChordKey, tracker.EncodePeerList(peersInfoHash))
 	}
 	ans.Peers = make(map[string]common.Address)
-	for id, address := range tracker.peers[request.InfoHash] {
+	for id, address := range peersInfoHash {
 		if id != request.PeerId {
 			ans.Peers[id] = address
 		}

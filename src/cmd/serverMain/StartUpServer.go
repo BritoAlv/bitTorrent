@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bittorrent/dht/library/BruteChord/Core"
-	"bittorrent/dht/library/MonitorHand"
 	"bittorrent/dht/library/WithSocket"
 	"flag"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -16,11 +13,7 @@ func main() {
 	flag.Parse()
 	portList := strings.Split(*ports, ",")
 	WithSocket.RegisterStartUp(*iface, "SocketServerClient", portList)
-	randomId := Core.GenerateRandomBinaryId()
-	randomIdStr := strconv.Itoa(int(randomId))
-	socketServerClient := WithSocket.NewSocketServerClient(randomId)
-	monitorHand := MonitorHand.NewMonitorHand[WithSocket.SocketContact]("Monitor" + randomIdStr)
-	nodeSocket := Core.NewBruteChord(socketServerClient, socketServerClient, monitorHand, randomId)
+	nodeSocket := WithSocket.NewNodeSocket()
 	for {
 		time.Sleep(5 * time.Second)
 		println(nodeSocket.GetId())

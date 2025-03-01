@@ -4,27 +4,14 @@ import (
 	"bittorrent/dht/library/WithSocket"
 	"bittorrent/server/TrackerNode"
 	"fmt"
-	"sync"
+	"time"
 )
 
 func main() {
-
-	ip, _ := WithSocket.GetIpFromInterface("eth0")
-	if ip == "" {
-		ip = "localhost"
+	WithSocket.RegisterStartUp("eth0", "HttpChord", []string{"12345"})
+	var tracker1 = TrackerNode.NewHttpTracker("TrackerDocker")
+	for {
+		time.Sleep(1 * time.Second)
+		fmt.Printf("Tracker is running %v:%v \n", tracker1.Ip, tracker1.Port)
 	}
-	port := "8080"
-
-	var tracker1 = TrackerNode.NewHttpTracker(ip+":"+port, "MyHTTPServer")
-	fmt.Printf("Tracker Location is : %s\n", tracker1.SaveTorrent())
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := tracker1.Listen()
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-	}()
-	wg.Wait()
 }
