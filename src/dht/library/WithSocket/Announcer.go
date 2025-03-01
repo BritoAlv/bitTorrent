@@ -10,15 +10,13 @@ import (
 	"math/rand/v2"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 )
 
 type Announcer struct {
-	activeKnown     map[Core.ChordHash]SocketContact
+	activeKnown     Core.SafeMap[Core.ChordHash, SocketContact]
 	diagramListener net.PacketConn
 	Contact         SocketContact
-	lock            sync.Mutex
 	logger          common.Logger
 	monitor         Core.Monitor[SocketContact]
 }
@@ -27,11 +25,11 @@ func NewAnnouncer(contact SocketContact) *Announcer {
 	var announcer Announcer
 	announcer.Contact = contact
 	announcer.monitor = MonitorHand.NewMonitorHand[SocketContact]("MonitorAnnouncer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
-	announcer.lock = sync.Mutex{}
-	announcer.activeKnown = make(map[Core.ChordHash]SocketContact)
+	announcer.activeKnown = Core.SafeMap[Core.ChordHash, SocketContact]{}
 	announcer.logger = *common.NewLogger("Announcer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
 	_, broadIP := GetIpFromInterface(networkInterface)
-	add, err := net.ResolveUDPAddr("udp", broadIP+":"+usedPorts[rand.Int()%len(usedPorts)])
+	randomPort := availablePorts[rand.Int()%len(availablePorts)]
+	add, err := net.ResolveUDPAddr("udp", broadIP+":"+randomPort)
 	if err != nil {
 		announcer.logger.WriteToFileError("Error resolving UDP address: %v", err)
 	}
@@ -49,26 +47,18 @@ func NewAnnouncer(contact SocketContact) *Announcer {
 }
 
 func (a *Announcer) addContact(contact SocketContact) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-	a.activeKnown[contact.GetNodeId()] = contact
+	a.activeKnown.Set(contact.GetNodeId(), contact)
 	a.monitor.AddContact(contact, time.Now())
-	for _, knownContact := range a.activeKnown {
-		if !a.monitor.CheckAlive(knownContact, 20) {
-			delete(a.activeKnown, knownContact.GetNodeId())
+	for _, knownContact := range a.activeKnown.GetValues() {
+		if !a.monitor.CheckAlive(knownContact, 3) {
+			a.activeKnown.Delete(knownContact.GetNodeId())
 			a.monitor.DeleteContact(knownContact)
 		}
 	}
 }
 
 func (a *Announcer) GetContacts() []SocketContact {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-	result := make([]SocketContact, 0)
-	for _, contact := range a.activeKnown {
-		result = append(result, contact)
-	}
-	return result
+	return a.activeKnown.GetValues()
 }
 
 func (a *Announcer) listenAnnounces() {
@@ -96,7 +86,7 @@ func (a *Announcer) listenAnnounces() {
 
 func (a *Announcer) sendAnnouncesLogic() {
 	_, broadcastAddr := GetIpFromInterface(networkInterface)
-	for _, port := range usedPorts {
+	for _, port := range availablePorts {
 		conn, err := net.Dial("udp", broadcastAddr+":"+port)
 		if err != nil {
 			a.logger.WriteToFileError("Error dialing: %v", err)

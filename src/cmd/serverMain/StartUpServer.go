@@ -5,14 +5,11 @@ import (
 	"bittorrent/dht/library/BruteChord/Core"
 	"bittorrent/dht/library/MonitorHand"
 	"bittorrent/dht/library/WithSocket"
-	"encoding/gob"
-	"net"
 	"strconv"
 	"time"
 )
 
 func main() {
-	gob.Register(&net.TCPAddr{})
 	Core.RegisterNotifications[WithSocket.SocketContact]()
 	common.SetLogDirectoryPath("./SocketServerClient")
 	randomId := Core.GenerateRandomBinaryId()

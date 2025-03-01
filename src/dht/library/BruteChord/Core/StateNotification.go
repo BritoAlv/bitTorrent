@@ -9,13 +9,15 @@ func (t TellMeYourState[contact]) HandleNotification(b *BruteChord[contact]) {
 	b.clientChordCommunication.SendRequest(ClientTask[contact]{
 		Targets: []contact{t.QueryHost},
 		Data: TellMeYourStateResponse[contact]{
-			State: b.GetState(),
+			Sender: b.GetContact(0),
+			State:  b.GetState(),
 		},
 	})
 }
 
 type TellMeYourStateResponse[contact Contact] struct {
-	State string
+	Sender contact
+	State  string
 }
 
 func (t TellMeYourStateResponse[contact]) HandleNotification(b *BruteChord[contact]) {

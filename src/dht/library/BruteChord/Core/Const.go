@@ -1,6 +1,9 @@
 package Core
 
-import "encoding/gob"
+import (
+	"encoding/gob"
+	"net"
+)
 
 const NumberBits = 8
 const WaitingTime = 1
@@ -8,6 +11,7 @@ const Attempts = 5
 
 type ChordHash = int64
 type Store = map[ChordHash][]byte
+type SafeStore = SafeMap[ChordHash, []byte]
 
 func RegisterNotifications[T Contact]() {
 	gob.Register(&areYouAliveNotification[T]{})
@@ -22,4 +26,5 @@ func RegisterNotifications[T Contact]() {
 	gob.Register(&confirmReplication[T]{})
 	gob.Register(&TellMeYourState[T]{})
 	gob.Register(&TellMeYourStateResponse[T]{})
+	gob.Register(&net.TCPAddr{})
 }

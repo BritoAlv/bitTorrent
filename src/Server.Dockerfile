@@ -13,6 +13,6 @@ RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
 COPY ./ .
 
 # Build the application
-RUN go build -o Socket ./dht/Main.go
+RUN go build -o Server ./cmd/serverMain/StartUpServer.go
 
-CMD ["./Socket"]
+CMD ["./Server"]

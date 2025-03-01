@@ -10,14 +10,14 @@ import (
 type BruteChord[T Contact] struct {
 	id                            ChordHash // The ID of the Node.
 	info                          [3]contactWithData[T]
-	predecessorRef                T                       // Keep Track of the Predecessor, due to replication.
-	pendingResponses              map[int64]confirmations // I need to check if someone answered the request I sent.
-	lock                          sync.Mutex              // The Pointers shouldn't be updated concurrently.
-	monitor                       Monitor[T]              // To Keep Track of HeartBeats.
-	notificationChannelServerNode chan Notification[T]    // A channel that will be intermediary between the Server and the Node.
-	serverChordCommunication      Server[T]               // A Server that will receive notifications from contacts of type T.
-	clientChordCommunication      Client[T]               // A Client that will send notifications to others nodes of type T.
-	logger                        common.Logger           // To Log Everything The Node is doing.
+	predecessorRef                T                             // Keep Track of the Predecessor, due to replication.
+	pendingResponses              SafeMap[int64, confirmations] // I need to check if someone answered the request I sent.
+	lock                          sync.Mutex                    // The Pointers shouldn't be updated concurrently.
+	monitor                       Monitor[T]                    // To Keep Track of HeartBeats.
+	notificationChannelServerNode chan Notification[T]          // A channel that will be intermediary between the Server and the Node.
+	serverChordCommunication      Server[T]                     // A Server that will receive notifications from contacts of type T.
+	clientChordCommunication      Client[T]                     // A Client that will send notifications to others nodes of type T.
+	logger                        common.Logger                 // To Log Everything The Node is doing.
 	isWorking                     bool
 }
 
@@ -31,10 +31,10 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.serverChordCommunication.SetData(node.notificationChannelServerNode, node.id)
 	node.clientChordCommunication = clientChordCommunication
 	node.monitor = monitor
-	node.pendingResponses = make(map[int64]confirmations)
+	node.pendingResponses = SafeMap[int64, confirmations]{}
 	node.info[0].Contact = serverChordCommunication.GetContact()
 	for i := 0; i < 3; i++ {
-		node.info[i].Data = make(Store)
+		node.info[i].Data = SafeStore{}
 	}
 	node.setContact(node.defaultSuccessor(), -1)
 	node.setContact(node.defaultSuccessor(), 1)
@@ -66,9 +66,9 @@ func (c *BruteChord[T]) stabilizeOwnData() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	successor := c.info[1].Contact.GetNodeId()
-	for key, value := range c.info[0].Data {
+	for key, value := range c.info[0].Data.Replicate() {
 		if !between(c.id, key, successor) {
-			delete(c.info[0].Data, key)
+			c.info[0].Data.Delete(key)
 			go c.Put(key, value)
 		}
 	}
@@ -77,39 +77,36 @@ func (c *BruteChord[T]) stabilizeOwnData() {
 func (c *BruteChord[T]) getData(key ChordHash, index int) []byte {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	data := c.copyValue(c.info[index].Data[key])
+	obt, _ := c.info[index].Data.Get(key)
+	data := c.copyValue(obt)
 	return data
 }
 
 func (c *BruteChord[T]) getAllData(index int) Store {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	data := c.copyStore(c.info[index].Data)
+	data := c.copyStore(c.info[index].Data.Replicate())
 	return data
 }
 
 func (c *BruteChord[T]) setData(key ChordHash, value []byte, index int) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	c.info[index].Data[key] = value
+	c.info[index].Data.Set(key, value)
 }
 
 func (c *BruteChord[T]) setPendingResponse(taskId int64, confirmation confirmations) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.pendingResponses[taskId] = confirmation
+	c.pendingResponses.Set(taskId, confirmation)
 }
 
 func (c *BruteChord[T]) addNewData(data Store, index int) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	c.info[index].Data = data
+	c.info[index].Data = *NewSafeMap(data)
 }
 
 func (c *BruteChord[T]) getPendingResponse(taskId int64) confirmations {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	confirmation, _ := c.pendingResponses[taskId]
+	confirmation, _ := c.pendingResponses.Get(taskId)
 	return confirmation
 }
 
@@ -121,10 +118,10 @@ func (c *BruteChord[T]) setContact(candidate T, index int) {
 	} else {
 		if c.info[index].Contact.GetNodeId() != candidate.GetNodeId() {
 			c.logger.WriteToFileOK("Because I'll have a new successor, I'll have to release the replicas I was holding for that old successor")
-			for key, data := range c.info[index].Data {
+			for key, data := range c.info[index].Data.Replicate() {
 				go c.Put(key, data)
 			}
-			c.info[index] = contactWithData[T]{Contact: candidate, Data: make(Store)}
+			c.info[index] = contactWithData[T]{Contact: candidate, Data: SafeStore{}}
 		}
 	}
 	curDate := time.Now()

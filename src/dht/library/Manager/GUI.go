@@ -26,11 +26,11 @@ type GUI[T Core.Contact] struct {
 	pausedButton   *widget.Button
 }
 
-func NewGUI[T Core.Contact](manager *IManagerRPC[T]) *GUI[T] {
+func NewGUI[T Core.Contact](manager IManagerRPC[T]) *GUI[T] {
 	a := app.New() // Create a new application
 	window := a.NewWindow("Chord Network State")
 	gui := &GUI[T]{
-		manager:        *manager,
+		manager:        manager,
 		window:         window,
 		nodeLabelsCard: make(map[Core.ChordHash]labelCard),
 		grid:           container.NewGridWithColumns(4),
@@ -56,7 +56,7 @@ func NewGUI[T Core.Contact](manager *IManagerRPC[T]) *GUI[T] {
 
 func (g *GUI[T]) updateState() {
 	for {
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		if g.paused {
 			continue
 		}
@@ -112,7 +112,7 @@ func (g *GUI[T]) updateState() {
 
 func (g *GUI[T]) prepareState() map[Core.ChordHash]string {
 	result := make(map[Core.ChordHash]string)
-	for _, key := range g.manager.GetNodesIds() {
+	for _, key := range g.manager.GetActiveNodesIds() {
 		result[key] = g.manager.GetNodeStateRPC(key) // this is an RPC.
 	}
 	return result

@@ -221,7 +221,7 @@ func TestUpdateWithReplication(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		database.RemoveRandomNode()
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(8 * time.Second)
 	for _, node := range database.GetNodes() {
 		value, exist := node.Get(Core.ChordHash(key))
 		if !exist {

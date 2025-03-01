@@ -19,7 +19,7 @@ type DataBaseInMemory struct { // Not Meant To Be Async.
 	logger common.Logger
 }
 
-func (db *DataBaseInMemory) GetNodesIds() []Core.ChordHash {
+func (db *DataBaseInMemory) GetActiveNodesIds() []Core.ChordHash {
 	var ids []Core.ChordHash
 	for id := range db.dict {
 		ids = append(ids, id)
