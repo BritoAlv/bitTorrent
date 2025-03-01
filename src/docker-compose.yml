@@ -1,0 +1,20 @@
+services:
+  socket1:
+    build:
+      context: .
+    networks:
+      - my_network
+  socket2:
+    build:
+      context: .
+    networks:
+      - my_network
+  socket3:
+    build:
+      context: .
+    networks:
+      - my_network
+
+networks:
+  my_network:
+    driver: bridge

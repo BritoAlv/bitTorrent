@@ -32,11 +32,11 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.clientChordCommunication = clientChordCommunication
 	node.monitor = monitor
 	node.pendingResponses = make(map[int64]confirmations)
-	node.setContact(node.defaultSuccessor(), -1)
 	node.info[0].Contact = serverChordCommunication.GetContact()
 	for i := 0; i < 3; i++ {
 		node.info[i].Data = make(Store)
 	}
+	node.setContact(node.defaultSuccessor(), -1)
 	node.setContact(node.defaultSuccessor(), 1)
 	node.setContact(node.defaultSuccessor(), 2)
 	node.SetWork(true)

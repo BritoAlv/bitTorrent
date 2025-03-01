@@ -2,26 +2,31 @@ package WithSocket
 
 import (
 	"bittorrent/dht/library/BruteChord/Core"
+	"encoding/binary"
 	"encoding/gob"
 	"net"
-	"strings"
 )
 
-func (s *SocketServerClient) listenUDP() {
-	for {
-		buffer := make([]byte, 1024)
-		n, _, err := s.listenerUDP.ReadFromUDP(buffer)
-		if err != nil {
-			s.logger.WriteToFileError("Error reading from UDP %v", err)
+func getIPFromInterface() (string, string) {
+	itf, _ := net.InterfaceByName(networkInterface) //here your interface
+	item, _ := itf.Addrs()
+	for _, addr := range item {
+		switch v := addr.(type) {
+		case *net.IPNet:
+			if !v.IP.IsLoopback() {
+				if v.IP.To4() != nil { //Verify if IP is IPV4
+					ip := v.IP
+					if v.IP.To4() == nil {
+						return "", ""
+					}
+					broadIP := make(net.IP, len(v.IP.To4()))
+					binary.BigEndian.PutUint32(broadIP, binary.BigEndian.Uint32(v.IP.To4())|^binary.BigEndian.Uint32(net.IP(v.Mask).To4()))
+					return ip.String(), broadIP.String()
+				}
+			}
 		}
-		var notification Core.Notification[SocketContact]
-		gobDecoder := gob.NewDecoder(strings.NewReader(string(buffer[:n])))
-		err = gobDecoder.Decode(&notification)
-		if err != nil {
-			s.logger.WriteToFileError("Error decoding the notification %v", err)
-		}
-		s.communicationChannel <- notification
 	}
+	return "", ""
 }
 
 func (s *SocketServerClient) listenTCP() {
@@ -42,16 +47,11 @@ func (s *SocketServerClient) handleConnection(conn net.Conn) {
 	err := gobDecoder.Decode(&notification)
 	if err != nil {
 		s.logger.WriteToFileError("Error decoding the notification %v", err)
+		panic(err)
 	}
 	s.communicationChannel <- notification
 	err = conn.Close()
 	if err != nil {
 		s.logger.WriteToFileError("Error closing the connection %v", err)
 	}
-}
-
-func createBroadcastAddress(ip string) string {
-	parts := strings.Split(ip, ".")
-	parts[len(parts)-1] = "255"
-	return strings.Join(parts, ".")
 }
