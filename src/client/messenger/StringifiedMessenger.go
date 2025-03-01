@@ -2,23 +2,33 @@ package messenger
 
 import (
 	"bittorrent/common"
+	"crypto/rsa"
 	"errors"
+	"fmt"
 	"io"
+	"math/big"
 	"strconv"
 	"strings"
 )
 
 type stringifiedMessenger struct {
+	innerKey    *rsa.PrivateKey
+	externalKey *rsa.PublicKey
 }
 
-func New() Messenger {
-	return stringifiedMessenger{}
+func New(innerKey *rsa.PrivateKey, externalKey *rsa.PublicKey) Messenger {
+	return stringifiedMessenger{
+		innerKey:    innerKey,
+		externalKey: externalKey,
+	}
 }
 
 //** Write implementation
 
-func (manager stringifiedMessenger) Write(writer io.Writer, message interface{}) error {
+// Pass public key as an argument here
+func (messenger stringifiedMessenger) Write(writer io.Writer, message interface{}) error {
 	var bytes []byte
+	var err error
 	switch castedMessage := message.(type) {
 	case HandshakeMessage:
 		bytes = encodeHandshakeMessage(castedMessage)
@@ -37,14 +47,17 @@ func (manager stringifiedMessenger) Write(writer io.Writer, message interface{})
 	case RequestMessage:
 		bytes = encodeRequestMessage(castedMessage)
 	case PieceMessage:
-		bytes = encodePieceMessage(castedMessage)
+		bytes, err = encodePieceMessage(castedMessage, messenger.externalKey)
+		if err != nil {
+			return err
+		}
 	case CancelMessage:
 		bytes = encodeCancelMessage(castedMessage)
 	default:
 		return errors.New("invalid message type")
 	}
 
-	err := common.ReliableWrite(writer, bytes)
+	err = common.ReliableWrite(writer, bytes)
 	if err != nil {
 		return err
 	}
@@ -52,8 +65,18 @@ func (manager stringifiedMessenger) Write(writer io.Writer, message interface{})
 }
 
 func encodeHandshakeMessage(message HandshakeMessage) []byte {
-	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + ";")
+	modulusStr := "ñ"
+	exponentStr := "ñ"
+	if message.PublicKey != nil {
+		modulusStr = "ñ" + message.PublicKey.N.String()
+		exponentStr = "ñ" + strconv.Itoa(message.PublicKey.E)
+	}
+
+	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + "ñ")
 	messageBytes = append(messageBytes, message.Infohash[:]...)
+	messageBytes = append(messageBytes, []byte(modulusStr)...)
+	messageBytes = append(messageBytes, []byte(exponentStr)...)
+
 	return append(getLength(messageBytes), messageBytes...)
 }
 
@@ -88,12 +111,22 @@ func encodeRequestMessage(message RequestMessage) []byte {
 	return append(getLength(messageBytes), messageBytes...)
 }
 
-func encodePieceMessage(message PieceMessage) []byte {
+func encodePieceMessage(message PieceMessage, publicKey *rsa.PublicKey) ([]byte, error) {
 	messageBytes := []byte(strconv.Itoa(_PIECE_MESSAGE) + ";" + strconv.Itoa(message.Index) + ";" + strconv.Itoa(message.Offset) + ";")
 
-	messageBytes = append(messageBytes, message.Bytes...)
+	var err error
+	encryptedBytes := message.Bytes
+	if publicKey != nil {
+		// Encrypt piece bytes
+		encryptedBytes, err = encrypt(message.Bytes, publicKey)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return append(getLength(messageBytes), messageBytes...)
+	messageBytes = append(messageBytes, encryptedBytes...)
+
+	return append(getLength(messageBytes), messageBytes...), nil
 }
 
 func encodeCancelMessage(message CancelMessage) []byte {
@@ -109,7 +142,7 @@ func getLength(message []byte) []byte {
 
 //** Read implementation
 
-func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) {
+func (messenger stringifiedMessenger) Read(reader io.Reader) (interface{}, error) {
 	metaLengthBytes, err := common.ReliableRead(reader, 1)
 	if err != nil {
 		return nil, err
@@ -157,7 +190,7 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 	case _REQUEST_MESSAGE:
 		return decodeRequestMessage(messageStr)
 	case _PIECE_MESSAGE:
-		return decodePieceMessage(messageStr)
+		return decodePieceMessage(messageStr, messenger.innerKey)
 	case _CANCEL_MESSAGE:
 		return decodeCancelMessage(messageStr)
 	default:
@@ -166,10 +199,10 @@ func (manager stringifiedMessenger) Read(reader io.Reader) (interface{}, error) 
 }
 
 func decodeHandshakeMessage(messageStr string) (HandshakeMessage, error) {
-	messageSplits := strings.SplitN(messageStr, ";", 3)
-	handshakeSplits := messageSplits[1:]
+	messageStr = strings.SplitN(messageStr, ";", 2)[1]
+	handshakeSplits := strings.SplitN(messageStr, "ñ", 4)
 
-	if len(handshakeSplits) != 2 {
+	if len(handshakeSplits) != 4 {
 		return HandshakeMessage{}, errors.New("invalid handshake-message payload")
 	}
 
@@ -181,9 +214,31 @@ func decodeHandshakeMessage(messageStr string) (HandshakeMessage, error) {
 	}
 	infohash := [20]byte(infohashSlice)
 
+	modulusStr := handshakeSplits[2]
+	exponentStr := handshakeSplits[3]
+
+	var publicKey *rsa.PublicKey
+	if modulusStr != "" && exponentStr != "" {
+		modulus, successful := big.NewInt(0).SetString(modulusStr, 10)
+		if !successful {
+			fmt.Println("Error parsing the public key string")
+		}
+
+		exponent, err := strconv.Atoi(exponentStr)
+		if err != nil {
+			fmt.Println("Error parsing the public key string")
+		}
+
+		publicKey = &rsa.PublicKey{
+			N: modulus,
+			E: exponent,
+		}
+	}
+
 	return HandshakeMessage{
-		Infohash: infohash,
-		Id:       id,
+		Infohash:  infohash,
+		Id:        id,
+		PublicKey: publicKey,
 	}, nil
 }
 
@@ -255,7 +310,7 @@ func decodeRequestMessage(messageStr string) (RequestMessage, error) {
 	}, nil
 }
 
-func decodePieceMessage(messageStr string) (PieceMessage, error) {
+func decodePieceMessage(messageStr string, privateKey *rsa.PrivateKey) (PieceMessage, error) {
 	messageSplits := strings.SplitN(messageStr, ";", 4)
 	pieceSplits := messageSplits[1:]
 
@@ -273,12 +328,20 @@ func decodePieceMessage(messageStr string) (PieceMessage, error) {
 		return PieceMessage{}, errors.New("invalid piece-message payload")
 	}
 
-	bytes := []byte(pieceSplits[2])
+	encryptedBytes := []byte(pieceSplits[2])
+	decryptedBytes := encryptedBytes
+	if privateKey != nil {
+		// Decrypt bytes here using the public key argument
+		decryptedBytes, err = decrypt(encryptedBytes, privateKey)
+		if err != nil {
+			return PieceMessage{}, err
+		}
+	}
 
 	return PieceMessage{
 		Index:  index,
 		Offset: offset,
-		Bytes:  bytes,
+		Bytes:  decryptedBytes,
 	}, nil
 }
 

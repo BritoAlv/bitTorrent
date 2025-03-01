@@ -1,0 +1,97 @@
+* {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+#main-header{
+    text-align: center;
+    font-size: 3rem;
+    color: rgb(60, 60, 60);
+}
+
+#main-image{
+    display: block;
+    margin: auto;
+    width: 100%;
+    height: 250px;
+    object-fit: contain;
+}
+
+#error-message{
+    display: block;
+    width: 60%;
+    margin: auto;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    font-size: 1.5em;
+    color: rgb(117, 77, 77);
+    text-align: center;
+    font-style: italic;
+}
+
+#add-torrent-container{
+    display: block;
+    margin: auto;
+    text-align: center;
+    margin-bottom: 2em;
+}
+
+#add-torrent-input{
+    border: none;
+    font-size: 2.5em;
+    outline: none;
+    border-bottom: rgb(60, 60, 60) 2px solid;
+}
+
+#add-torrent-input:focus{
+    outline: none;
+}
+
+#add-torrent-button{
+    border: none;
+    outline: none;
+    background-color: inherit;
+    margin: 0;
+    padding: 0;
+    display: inline;
+    font-size: 2.5em;
+    font-weight: bold;
+    color: grey;
+}
+
+#add-torrent-button:hover{
+    color: rgb(60, 60, 60);
+}
+
+ul{
+    list-style: none;
+    overflow-y: auto;
+    margin: auto;
+    width: 60%;
+    height: 200px;
+    
+}
+
+li{
+    text-align: center;
+}
+
+.status-progress-bar, .status-name, .status-peers, .status-download, .status-stop, .status-remove {
+    display: inline;
+    margin-right: 1em;
+}
+
+.status-name, .status-peers{
+    font-size: 1.5em;
+    font-weight: bold;
+    color: rgb(60, 60, 60);
+}
+
+.status-download, .status-stop, .status-remove{
+    font-size: 1.5em;
+    font-weight: bold;
+    color: grey;
+}
+
+.status-download:hover, .status-stop:hover, .status-remove:hover{
+    color: black;
+}

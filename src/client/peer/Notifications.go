@@ -2,10 +2,11 @@ package peer
 
 import (
 	"bittorrent/common"
+	"crypto/rsa"
 	"net"
 )
 
-type killNotification struct{}
+type KillNotification struct{}
 
 type trackNotification struct {
 	Response   common.TrackResponse
@@ -27,6 +28,7 @@ type pieceVerificationNotification struct {
 type addPeerNotification struct {
 	PeerId     string
 	Connection net.Conn
+	PublicKey  *rsa.PublicKey
 }
 
 type removePeerNotification struct {

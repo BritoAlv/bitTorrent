@@ -24,7 +24,12 @@ go.work.sum
 # env file
 .env
 
-
 # Custom settings
 *.torrent
 debug/
+
+data/
+bin/
+.vscode/
+.idea/
+volumes/

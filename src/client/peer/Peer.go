@@ -6,8 +6,12 @@ import (
 	"bittorrent/common"
 	"bittorrent/fileManager"
 	"bittorrent/torrent"
+	"crypto/rand"
+	"crypto/rsa"
+	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -17,12 +21,14 @@ type Peer struct {
 	Id string
 
 	//** Private properties
-	notificationChannel chan interface{}
+	NotificationChannel chan interface{}
 	address             common.Address            // Peer's address
 	listener            net.Listener              // Peer's listener
 	torrentData         torrent.Torrent           // Torrent associated data
 	peers               map[string]PeerInfo       // Neighbor peers. It's a <PeerId, PeerInfo> dictionary
 	tempPeers           map[string]common.Address // Peers being currently processed, might or not be official neighbors. This property can be refactor in the future
+	privateKey          *rsa.PrivateKey
+	requestedChunks     map[[3]string]int
 
 	// Interfaces
 	tracker      tracker.Tracker
@@ -33,7 +39,7 @@ type Peer struct {
 	getAbsoluteOffset func(int, int) int // Function that calculates the absolute offset from index and relative-offset
 }
 
-func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDirectory string) (Peer, error) {
+func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDirectory string, encrypted bool) (Peer, error) {
 	splitAddress := strings.Split(listener.Addr().String(), ":")
 
 	peer := Peer{}
@@ -41,9 +47,10 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 	peer.address = common.Address{Ip: splitAddress[0], Port: splitAddress[1]}
 	peer.listener = listener
 	peer.torrentData = torrent
-	peer.notificationChannel = make(chan interface{}, 1000)
+	peer.NotificationChannel = make(chan interface{}, 1000)
 	peer.peers = make(map[string]PeerInfo)
 	peer.tempPeers = make(map[string]common.Address)
+	peer.requestedChunks = make(map[[3]string]int)
 
 	peer.tracker = tracker.CentralizedHttpTracker{Url: torrent.Announce}
 
@@ -80,6 +87,14 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 		return Peer{}, err
 	}
 
+	peer.privateKey = nil
+	if encrypted {
+		peer.privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return Peer{}, errors.New("error generating private key")
+		}
+	}
+
 	return peer, nil
 }
 
@@ -99,10 +114,10 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 		// Event:    "started",
 	}
 
-	go performListen(peer.notificationChannel, peer.listener, peer.Id, peer.torrentData.InfoHash)
-	go performTrack(peer.notificationChannel, peer.tracker, trackerRequest, 0)
+	go performListen(peer.NotificationChannel, peer.listener, peer.Id, peer.torrentData.InfoHash, peer.privateKey)
+	go performTrack(peer.NotificationChannel, peer.tracker, trackerRequest, 0)
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 2)
+		go performDownload(peer.NotificationChannel, 2)
 	}
 
 	waitGroup := sync.WaitGroup{}
@@ -110,9 +125,14 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 	go func() {
 		defer waitGroup.Done()
 
-		for message := range peer.notificationChannel {
+		for message := range peer.NotificationChannel {
 			switch notification := message.(type) {
-			case killNotification:
+			case KillNotification:
+				peer.listener.Close()
+				for _, peerStruct := range peer.peers {
+					peerStruct.Connection.Close()
+				}
+				fmt.Println("LOG: Killed")
 				return
 			case trackNotification:
 				peer.handleTrackResponseNotification(notification)
@@ -146,6 +166,18 @@ func (peer *Peer) Torrent(externalWaitGroup *sync.WaitGroup) error {
 	return nil
 }
 
+func (peer Peer) Status() (progress float32, peers int) {
+	bitfield := peer.pieceManager.Bitfield()
+	indexes := len(bitfield)
+	downloaded := 0
+	for _, value := range bitfield {
+		if value {
+			downloaded++
+		}
+	}
+	return float32(downloaded) / float32(indexes), len(peer.peers)
+}
+
 func (peer *Peer) handleTrackResponseNotification(notification trackNotification) {
 	// TODO: Properly handle the case when the notification was not successful
 	fmt.Println("LOG: handling tracker response notification")
@@ -155,14 +187,14 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 	if !peer.downloaded && len(peer.peers) < PEERS_LOWER_BOUND {
 		for id, address := range notification.Response.Peers {
 			if peer.isValidNeighbor(id, address) {
-				go performAddPeer(peer.notificationChannel, peer.Id, id, address, peer.torrentData.InfoHash)
+				go performAddPeer(peer.NotificationChannel, peer.Id, id, address, peer.torrentData.InfoHash, peer.privateKey)
 			}
 		}
 	}
 
 	left := peer.bytesLeft()
 
-	go performTrack(peer.notificationChannel, peer.tracker, common.TrackRequest{
+	go performTrack(peer.NotificationChannel, peer.tracker, common.TrackRequest{
 		InfoHash: peer.torrentData.InfoHash,
 		PeerId:   peer.Id,
 		Ip:       peer.address.Ip,
@@ -194,15 +226,31 @@ func (peer *Peer) handleDownloadNotification() {
 
 	for _, chunk := range uncheckedChunks {
 		for peerId, peerInfo := range peer.peers {
-			if peerInfo.Bitfield[chunk[INDEX]] {
-				go performSendRequestToPeer(peer.notificationChannel, peerInfo.Connection, peerId, chunk[INDEX], chunk[OFFSET], chunk[LENGTH])
+			indexStr := strconv.Itoa(chunk[INDEX])
+			offsetStr := strconv.Itoa(chunk[OFFSET])
+			requestChunkId := [3]string{peerId, indexStr, offsetStr}
+
+			requestedCount, previouslyRequested := peer.requestedChunks[requestChunkId]
+
+			if requestedCount == 0 && previouslyRequested {
+				fmt.Print()
+			}
+
+			if peerInfo.Bitfield[chunk[INDEX]] && (!previouslyRequested || requestedCount == 0) {
+				peer.requestedChunks[requestChunkId] = 20
+
+				go performSendRequestToPeer(peer.NotificationChannel, peerInfo.Connection, peerId, chunk[INDEX], chunk[OFFSET], chunk[LENGTH])
 				break
+			}
+
+			if previouslyRequested {
+				peer.requestedChunks[requestChunkId]--
 			}
 		}
 	}
 
 	if !peer.downloaded {
-		go performDownload(peer.notificationChannel, 5)
+		go performDownload(peer.NotificationChannel, 5)
 	}
 }
 
@@ -218,6 +266,7 @@ func (peer *Peer) handleAddPeerNotification(notification addPeerNotification) {
 		Bitfield:   make([]bool, len(peer.pieceManager.Bitfield())),
 		IsChoker:   false,
 		IsChoked:   false,
+		PublicKey:  notification.PublicKey,
 	}
 }
 
@@ -235,6 +284,11 @@ func (peer *Peer) handleRemovePeerNotification(notification removePeerNotificati
 	}
 
 	delete(peer.peers, notification.PeerId)
+	for key := range peer.requestedChunks {
+		if key[0] == notification.PeerId {
+			delete(peer.requestedChunks, key)
+		}
+	}
 	fmt.Println("LOG: remove neighbor: " + notification.PeerId)
 }
 
@@ -245,7 +299,7 @@ func (peer *Peer) handleSendBitfieldNotification(notification sendBitfieldNotifi
 		return
 	}
 
-	performSendBitfieldToPeer(peer.notificationChannel, info.Connection, notification.PeerId, peer.pieceManager.Bitfield())
+	performSendBitfieldToPeer(peer.NotificationChannel, info.Connection, notification.PeerId, peer.pieceManager.Bitfield())
 }
 
 func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotification) {
@@ -262,7 +316,7 @@ func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotifica
 	}
 
 	start := peer.getAbsoluteOffset(notification.Index, notification.Offset)
-	go performSendPieceToPeer(peer.notificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start)
+	go performSendPieceToPeer(peer.NotificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start, peer.peers[notification.PeerId].PublicKey)
 }
 
 func (peer *Peer) handlePeerBitfieldNotification(notification peerBitfieldNotification) {
@@ -289,7 +343,7 @@ func (peer *Peer) handlePeerPieceNotification(notification peerPieceNotification
 	}
 
 	absoluteOffset := peer.getAbsoluteOffset(notification.Index, notification.Offset)
-	go performWrite(peer.notificationChannel, peer.fileManager, notification.Index, notification.Offset, absoluteOffset, notification.Bytes)
+	go performWrite(peer.NotificationChannel, peer.fileManager, notification.Index, notification.Offset, absoluteOffset, notification.Bytes)
 
 	fmt.Println("LOG: a piece-message was received from: " + notification.PeerId)
 }
@@ -301,7 +355,7 @@ func (peer *Peer) handleWriteNotification(notification writeNotification) {
 	if checkedPiece {
 		pieceAbsoluteOffset := notification.Index * int(peer.torrentData.PieceLength)
 
-		go performVerifyPiece(peer.notificationChannel, peer.fileManager, notification.Index, pieceAbsoluteOffset, int(peer.torrentData.PieceLength), peer.torrentData.Pieces)
+		go performVerifyPiece(peer.NotificationChannel, peer.fileManager, notification.Index, pieceAbsoluteOffset, int(peer.torrentData.PieceLength), peer.torrentData.Pieces)
 	}
 }
 
@@ -311,7 +365,7 @@ func (peer *Peer) handlePieceVerifiedNotification(notification pieceVerification
 
 		// Send have-message to all neighbor peers
 		for peerId, peerInfo := range peer.peers {
-			go performSendHaveToPeer(peer.notificationChannel, peerInfo.Connection, peerId, notification.Index)
+			go performSendHaveToPeer(peer.NotificationChannel, peerInfo.Connection, peerId, notification.Index)
 		}
 	} else {
 		fmt.Printf("LOG: piece %v was corrupted\n", notification.Index)

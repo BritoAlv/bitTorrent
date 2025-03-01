@@ -1,6 +1,9 @@
 package peer
 
-import "net"
+import (
+	"crypto/rsa"
+	"net"
+)
 
 type PeerInfo struct {
 	Connection   net.Conn
@@ -8,4 +11,5 @@ type PeerInfo struct {
 	IsInterested bool
 	IsChoker     bool
 	IsChoked     bool
+	PublicKey    *rsa.PublicKey
 }

@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) != 4 {
-		fmt.Println("ERROR: expecting 2 arguments: torrent file, download directory and ip")
+		fmt.Println("ERROR: expecting 3 arguments: torrent file, download directory and ip")
 		os.Exit(1)
 		return
 	}
@@ -21,7 +21,7 @@ func main() {
 	downloadDirectory := os.Args[2]
 	ip := os.Args[3]
 
-	torrent, err := torrent.ParseTorrentFile(torrentFileName)
+	_torrent, err := torrent.ParseTorrentFile(torrentFileName)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -35,7 +35,7 @@ func main() {
 		return
 	}
 
-	peer, err := peer.New(peerId, listener, torrent, downloadDirectory)
+	_peer, err := peer.New(peerId, listener, _torrent, downloadDirectory, false)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -44,6 +44,6 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	peer.Torrent(&wg)
+	_peer.Torrent(&wg)
 	wg.Wait()
 }
