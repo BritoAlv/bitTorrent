@@ -14,5 +14,3 @@ COPY ./ .
 
 # Build the application
 RUN go build -o Server ./cmd/serverMain/StartUpServer.go
-
-CMD ["./Server"]
