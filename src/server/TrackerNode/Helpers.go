@@ -16,14 +16,25 @@ func (tracker *HttpTracker) InfoHashToChordKey(infoHash [20]byte) Core.ChordHash
 }
 
 func (tracker *HttpTracker) EncodePeerList(peers map[string]common.Address) []byte {
+	if peers == nil {
+		panic("Passed Peers is nil")
+	}
 	var buf bytes.Buffer
-	gob.NewEncoder(&buf)
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(peers)
+	if err != nil {
+		panic(err)
+	}
 	return buf.Bytes()
 }
 
 func (tracker *HttpTracker) DecodePeerList(data []byte) map[string]common.Address {
 	var peers map[string]common.Address
 	buf := bytes.NewBuffer(data)
-	gob.NewDecoder(buf).Decode(&peers)
+	decoder := gob.NewDecoder(buf)
+	err := decoder.Decode(&peers)
+	if err != nil {
+		panic(err)
+	}
 	return peers
 }
