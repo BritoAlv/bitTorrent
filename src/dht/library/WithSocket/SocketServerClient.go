@@ -4,7 +4,6 @@ import (
 	"bittorrent/common"
 	"bittorrent/dht/library/BruteChord/Core"
 	"encoding/gob"
-	"fmt"
 	"net"
 	"strconv"
 )
@@ -19,12 +18,11 @@ type SocketServerClient struct {
 
 func NewSocketServerClient(nodeId Core.ChordHash) *SocketServerClient {
 	var socketServerClient SocketServerClient
-	ip, _ := getIPFromInterface()
+	ip, _ := GetIpFromInterface(networkInterface)
 	listenerTCP, err := net.Listen("tcp", ip+":0")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Listening TCP connections on", listenerTCP.Addr())
 	socketServerClient.nodeId = nodeId
 	socketServerClient.listenerTCP = listenerTCP
 	socketServerClient.announcer = *NewAnnouncer(socketServerClient.GetContact())

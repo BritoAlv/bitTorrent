@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-func getIPFromInterface() (string, string) {
+func GetIpFromInterface(networkInterface string) (string, string) {
 	itf, _ := net.InterfaceByName(networkInterface) //here your interface
 	item, _ := itf.Addrs()
 	for _, addr := range item {
