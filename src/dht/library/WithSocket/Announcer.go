@@ -2,6 +2,7 @@ package WithSocket
 
 import (
 	"bittorrent/common"
+	"bittorrent/dht/library/BruteChord"
 	"bittorrent/dht/library/BruteChord/Core"
 	"bittorrent/dht/library/MonitorHand"
 	"bytes"
@@ -10,15 +11,13 @@ import (
 	"math/rand/v2"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 )
 
 type Announcer struct {
-	activeKnown     map[Core.ChordHash]SocketContact
+	activeKnown     BruteChord.SafeMap[Core.ChordHash, SocketContact]
 	diagramListener net.PacketConn
 	Contact         SocketContact
-	lock            sync.Mutex
 	logger          common.Logger
 	monitor         Core.Monitor[SocketContact]
 }
@@ -27,8 +26,7 @@ func NewAnnouncer(contact SocketContact) *Announcer {
 	var announcer Announcer
 	announcer.Contact = contact
 	announcer.monitor = MonitorHand.NewMonitorHand[SocketContact]("MonitorAnnouncer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
-	announcer.lock = sync.Mutex{}
-	announcer.activeKnown = make(map[Core.ChordHash]SocketContact)
+	announcer.activeKnown = BruteChord.SafeMap[Core.ChordHash, SocketContact]{}
 	announcer.logger = *common.NewLogger("Announcer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
 	_, broadIP := GetIpFromInterface(networkInterface)
 	add, err := net.ResolveUDPAddr("udp", broadIP+":"+usedPorts[rand.Int()%len(usedPorts)])
@@ -49,26 +47,18 @@ func NewAnnouncer(contact SocketContact) *Announcer {
 }
 
 func (a *Announcer) addContact(contact SocketContact) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-	a.activeKnown[contact.GetNodeId()] = contact
+	a.activeKnown.Set(contact.GetNodeId(), contact)
 	a.monitor.AddContact(contact, time.Now())
-	for _, knownContact := range a.activeKnown {
+	for _, knownContact := range a.activeKnown.GetValues() {
 		if !a.monitor.CheckAlive(knownContact, 20) {
-			delete(a.activeKnown, knownContact.GetNodeId())
+			a.activeKnown.Delete(knownContact.GetNodeId())
 			a.monitor.DeleteContact(knownContact)
 		}
 	}
 }
 
 func (a *Announcer) GetContacts() []SocketContact {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-	result := make([]SocketContact, 0)
-	for _, contact := range a.activeKnown {
-		result = append(result, contact)
-	}
-	return result
+	return a.activeKnown.GetValues()
 }
 
 func (a *Announcer) listenAnnounces() {
