@@ -65,14 +65,14 @@ func (messenger stringifiedMessenger) Write(writer io.Writer, message interface{
 }
 
 func encodeHandshakeMessage(message HandshakeMessage) []byte {
-	modulusStr := ";"
-	exponentStr := ";"
+	modulusStr := "ñ"
+	exponentStr := "ñ"
 	if message.PublicKey != nil {
-		modulusStr = ";" + message.PublicKey.N.String()
-		exponentStr = ";" + strconv.Itoa(message.PublicKey.E)
+		modulusStr = "ñ" + message.PublicKey.N.String()
+		exponentStr = "ñ" + strconv.Itoa(message.PublicKey.E)
 	}
 
-	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + ";")
+	messageBytes := []byte(strconv.Itoa(_HANDSHAKE_MESSAGE) + ";" + message.Id + "ñ")
 	messageBytes = append(messageBytes, message.Infohash[:]...)
 	messageBytes = append(messageBytes, []byte(modulusStr)...)
 	messageBytes = append(messageBytes, []byte(exponentStr)...)
@@ -199,8 +199,8 @@ func (messenger stringifiedMessenger) Read(reader io.Reader) (interface{}, error
 }
 
 func decodeHandshakeMessage(messageStr string) (HandshakeMessage, error) {
-	messageSplits := strings.SplitN(messageStr, ";", 5)
-	handshakeSplits := messageSplits[1:]
+	messageStr = strings.SplitN(messageStr, ";", 2)[1]
+	handshakeSplits := strings.SplitN(messageStr, "ñ", 4)
 
 	if len(handshakeSplits) != 4 {
 		return HandshakeMessage{}, errors.New("invalid handshake-message payload")
