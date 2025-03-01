@@ -2,19 +2,18 @@ package MonitorHand
 
 import (
 	"bittorrent/common"
-	"bittorrent/dht/library/BruteChord"
 	"bittorrent/dht/library/BruteChord/Core"
 	"time"
 )
 
 type MonitorHand[T Core.Contact] struct {
 	logger        common.Logger
-	lastDateKnown BruteChord.SafeMap[Core.ChordHash, time.Time]
+	lastDateKnown Core.SafeMap[Core.ChordHash, time.Time]
 }
 
 func NewMonitorHand[T Core.Contact](name string) *MonitorHand[T] {
 	return &MonitorHand[T]{
-		lastDateKnown: BruteChord.SafeMap[Core.ChordHash, time.Time]{},
+		lastDateKnown: Core.SafeMap[Core.ChordHash, time.Time]{},
 		logger:        *common.NewLogger(name + ".txt"),
 	}
 }

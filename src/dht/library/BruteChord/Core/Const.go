@@ -11,6 +11,7 @@ const Attempts = 5
 
 type ChordHash = int64
 type Store = map[ChordHash][]byte
+type SafeStore = SafeMap[ChordHash, []byte]
 
 func RegisterNotifications[T Contact]() {
 	gob.Register(&areYouAliveNotification[T]{})

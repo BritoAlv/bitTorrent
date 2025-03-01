@@ -1,7 +1,6 @@
 package WithSocket
 
 import (
-	"bittorrent/dht/library/BruteChord"
 	"bittorrent/dht/library/BruteChord/Core"
 	"reflect"
 	"time"
@@ -9,14 +8,14 @@ import (
 
 type ManagerSocket struct {
 	socket     *SocketServerClient
-	nodeStates BruteChord.SafeMap[Core.ChordHash, string]
+	nodeStates Core.SafeMap[Core.ChordHash, string]
 	channel    chan Core.Notification[SocketContact]
 }
 
 func NewManagerSocket() *ManagerSocket {
 	var managerSocket ManagerSocket
 	managerSocket.channel = make(chan Core.Notification[SocketContact])
-	managerSocket.nodeStates = BruteChord.SafeMap[Core.ChordHash, string]{}
+	managerSocket.nodeStates = Core.SafeMap[Core.ChordHash, string]{}
 	managerSocket.socket = NewSocketServerClient(-1)
 	managerSocket.socket.SetData(managerSocket.channel, -1)
 	go managerSocket.listenStates()

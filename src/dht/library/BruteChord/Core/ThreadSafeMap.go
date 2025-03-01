@@ -1,4 +1,4 @@
-package BruteChord
+package Core
 
 import (
 	"sync"
@@ -41,4 +41,21 @@ func (s *SafeMap[K, V]) GetValues() []V {
 
 func (s *SafeMap[K, V]) Delete(key K) {
 	s.m.Delete(key)
+}
+
+func (s *SafeMap[K, V]) Replicate() map[K]V {
+	replica := make(map[K]V)
+	s.m.Range(func(key, value interface{}) bool {
+		replica[key.(K)] = value.(V)
+		return true
+	})
+	return replica
+}
+
+func NewSafeMap[K comparable, V any](mapp map[K]V) *SafeMap[K, V] {
+	var sm SafeMap[K, V]
+	for key, value := range mapp {
+		sm.Set(key, value)
+	}
+	return &sm
 }

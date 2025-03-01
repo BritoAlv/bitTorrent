@@ -2,7 +2,6 @@ package WithSocket
 
 import (
 	"bittorrent/common"
-	"bittorrent/dht/library/BruteChord"
 	"bittorrent/dht/library/BruteChord/Core"
 	"bittorrent/dht/library/MonitorHand"
 	"bytes"
@@ -15,7 +14,7 @@ import (
 )
 
 type Announcer struct {
-	activeKnown     BruteChord.SafeMap[Core.ChordHash, SocketContact]
+	activeKnown     Core.SafeMap[Core.ChordHash, SocketContact]
 	diagramListener net.PacketConn
 	Contact         SocketContact
 	logger          common.Logger
@@ -26,7 +25,7 @@ func NewAnnouncer(contact SocketContact) *Announcer {
 	var announcer Announcer
 	announcer.Contact = contact
 	announcer.monitor = MonitorHand.NewMonitorHand[SocketContact]("MonitorAnnouncer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
-	announcer.activeKnown = BruteChord.SafeMap[Core.ChordHash, SocketContact]{}
+	announcer.activeKnown = Core.SafeMap[Core.ChordHash, SocketContact]{}
 	announcer.logger = *common.NewLogger("Announcer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
 	_, broadIP := GetIpFromInterface(networkInterface)
 	randomPort := availablePorts[rand.Int()%len(availablePorts)]
