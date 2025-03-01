@@ -1,4 +1,4 @@
 #!/bin/sh
 
 ./build.sh
-cd bin ; ./server
+cd bin/gui ; ./server
