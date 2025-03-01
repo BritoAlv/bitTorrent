@@ -52,7 +52,7 @@ func New(id string, listener net.Listener, torrent torrent.Torrent, downloadDire
 	peer.tempPeers = make(map[string]common.Address)
 	peer.requestedChunks = make(map[[3]string]int)
 
-	peer.tracker = tracker.CentralizedHttpTracker{Url: torrent.Announce}
+	peer.tracker = &tracker.CentralizedHttpTracker{MulticastUrl: torrent.Announce}
 
 	length := 0
 	var files []common.FileInfo
