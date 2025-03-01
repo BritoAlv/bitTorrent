@@ -56,7 +56,7 @@ func NewGUI[T Core.Contact](manager IManagerRPC[T]) *GUI[T] {
 
 func (g *GUI[T]) updateState() {
 	for {
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		if g.paused {
 			continue
 		}

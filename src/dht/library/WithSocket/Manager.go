@@ -4,6 +4,7 @@ import (
 	"bittorrent/dht/library/BruteChord"
 	"bittorrent/dht/library/BruteChord/Core"
 	"reflect"
+	"time"
 )
 
 type ManagerSocket struct {
@@ -27,8 +28,8 @@ func (m *ManagerSocket) listenStates() {
 	for {
 		select {
 		case notification := <-m.channel:
-			if reflect.TypeOf(notification) == reflect.TypeOf(Core.TellMeYourStateResponse[SocketContact]{}) {
-				response := notification.(Core.TellMeYourStateResponse[SocketContact])
+			if reflect.TypeOf(notification) == reflect.TypeOf(&Core.TellMeYourStateResponse[SocketContact]{}) {
+				response := notification.(*Core.TellMeYourStateResponse[SocketContact])
 				m.nodeStates.Set(response.Sender.GetNodeId(), response.State)
 			}
 		}
@@ -36,9 +37,13 @@ func (m *ManagerSocket) listenStates() {
 }
 
 func (m *ManagerSocket) updateStates() {
-	m.socket.SendRequestEveryone(Core.TellMeYourState[SocketContact]{
-		QueryHost: m.socket.GetContact(),
-	})
+	for {
+		time.Sleep(1 * time.Second)
+		m.socket.SendRequestEveryone(Core.TellMeYourState[SocketContact]{
+			QueryHost: m.socket.GetContact(),
+		})
+	}
+
 }
 
 func (m *ManagerSocket) GetActiveNodesIds() []Core.ChordHash {
