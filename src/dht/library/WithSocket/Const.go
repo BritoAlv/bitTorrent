@@ -1,5 +1,10 @@
 package WithSocket
 
+import (
+	"bittorrent/common"
+	"bittorrent/dht/library/BruteChord/Core"
+)
+
 var availablePorts = []string{
 	"12345",
 	"12346",
@@ -20,4 +25,15 @@ var availablePorts = []string{
 	"12361",
 }
 
-const networkInterface = "tun0"
+var networkInterface = "tun0"
+
+func SetNetworkInterface(iface string) {
+	networkInterface = iface
+}
+
+func RegisterStartUp(iface string, name string, ports []string) {
+	SetNetworkInterface(iface)
+	availablePorts = ports
+	common.SetLogDirectoryPath("./" + name)
+	Core.RegisterNotifications[SocketContact]()
+}

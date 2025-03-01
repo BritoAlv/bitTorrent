@@ -1,17 +1,21 @@
 package main
 
 import (
-	"bittorrent/common"
 	"bittorrent/dht/library/BruteChord/Core"
 	"bittorrent/dht/library/MonitorHand"
 	"bittorrent/dht/library/WithSocket"
+	"flag"
 	"strconv"
+	"strings"
 	"time"
 )
 
 func main() {
-	Core.RegisterNotifications[WithSocket.SocketContact]()
-	common.SetLogDirectoryPath("./SocketServerClient")
+	iface := flag.String("iface", "tun0", "Network interface to use")
+	ports := flag.String("ports", "12345,12346,12347,12348,12349", "Comma-separated list of available ports")
+	flag.Parse()
+	portList := strings.Split(*ports, ",")
+	WithSocket.RegisterStartUp(*iface, "SocketServerClient", portList)
 	randomId := Core.GenerateRandomBinaryId()
 	randomIdStr := strconv.Itoa(int(randomId))
 	socketServerClient := WithSocket.NewSocketServerClient(randomId)
