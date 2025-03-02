@@ -8,3 +8,6 @@ done
 for i in $(seq 1 10); do
     docker run --name server$i --net servers --cap-add=NET_ADMIN  -p $((9200 + i)):8080  -d server:1.0
 done
+
+cd ./src/cmd/guiMain/
+go run  .
