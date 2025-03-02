@@ -3,10 +3,10 @@ package Manager
 import (
 	"bittorrent/dht/library/BruteChord/Core"
 	"fmt"
-	"fyne.io/fyne"
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/container"
-	"fyne.io/fyne/widget"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 	"sort"
 	"strconv"
 	"time"
@@ -27,7 +27,7 @@ type GUI struct {
 }
 
 func NewGUI(manager IManagerRPC) *GUI {
-	a := app.New() // Create a new application
+	a := app.NewWithID("ChordNetworkState") // Create a new application
 	window := a.NewWindow("Chord Network State")
 	gui := &GUI{
 		manager:        manager,
