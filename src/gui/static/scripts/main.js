@@ -78,7 +78,6 @@ async function download(torrentPath) {
     }
 
     id = randomId();
-    torrents.set(torrentPath, [id, true]);
     const downloadRequest = new DownloadRequest(
         id,
         torrentPath,
@@ -87,7 +86,8 @@ async function download(torrentPath) {
     );
 
     const response = await post(API_URL+"download", downloadRequest);
-    
+    torrents.set(torrentPath, [id, true]);
+
     console.log(`Download response: \n${response}`);
     // TODO: Get .torrent file's name
     if (response.Successful) {
@@ -105,34 +105,43 @@ async function download(torrentPath) {
         const statusProgressBar = document.querySelector(`#status-progress-bar-${id}`);
         statusProgressBar.display = "inline";
 
-        const statusDownload = document.querySelector(`#status-download-${id}`);
-        const statusStop = document.querySelector(`#status-stop-${id}`);
-        const statusRemove = document.querySelector(`#status-remove-${id}`);
+        const statusDownloads = document.querySelectorAll(".status-download");
+        const stopDownloads = document.querySelectorAll(".status-stop");
+        const removeDownloads = document.querySelectorAll(".status-remove");
 
-        statusDownload.addEventListener("click", async () => {
-            const path = torrentPath;
-            await download(path);
+        statusDownloads.forEach(item => {
+            const id = item.id.split('-').pop();
+            item.addEventListener("click", async () => {
+                const path = Array.from(torrents.keys()).find(key => torrents.get(key)[0] === id);
+                await download(path);
+            });
         });
 
-        statusStop.addEventListener("click", async () => {
-            const path = torrentPath;
-            await stop(path);
-        });
-
-        statusRemove.addEventListener("click", async () => {
-            const path = torrentPath;
-            const pair = torrents.get(path);
-            const id = pair[0];
-            const running = pair[1];
-
-            if (running)
+        stopDownloads.forEach(item => {
+            const id = item.id.split('-').pop();
+            item.addEventListener("click", async () => {
+                const path = Array.from(torrents.keys()).find(key => torrents.get(key)[0] === id);
                 await stop(path);
-            
-            const previousStatus = statusList.querySelector(`#status-${id}`);
-            if (previousStatus != null)
-                statusList.removeChild(previousStatus);
+            });
+        });
 
-            torrents.delete(path);
+        removeDownloads.forEach(item => {
+            let id = item.id.split('-').pop();
+            item.addEventListener("click", async () => {
+                const path = Array.from(torrents.keys()).find(key => torrents.get(key)[0] === id);
+                const pair = torrents.get(path);
+                id = pair[0];
+                const running = pair[1];
+
+                if (running)
+                    await stop(path);
+                
+                const previousStatus = statusList.querySelector(`#status-${id}`);
+                if (previousStatus != null)
+                    statusList.removeChild(previousStatus);
+
+                torrents.delete(path);
+            });
         });
     } else {
         torrents.delete(torrentPath)
