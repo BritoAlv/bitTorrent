@@ -21,7 +21,7 @@ type Peer struct {
 	Id string
 
 	//** Private properties
-	NotificationChannel chan interface{}
+	NotificationChannel chan any
 	address             common.Address            // Peer's address
 	listener            net.Listener              // Peer's listener
 	torrentData         torrent.Torrent           // Torrent associated data

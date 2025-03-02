@@ -94,7 +94,7 @@ async function download(torrentPath) {
         statusList.innerHTML += 
 `
 <li id="status-${id}">
-    <label class="status-name" id="status-name-${id}">${torrentPath.substring(torrentPath.length - 30, torrentPath.length - 10)}</label>
+    <label class="status-name" id="status-name-${id}">${torrentPath.split('/').pop()}</label>
     <progress class="status-progress-bar" id="status-progress-bar-${id}" value="0" max="100"></progress>
     <label class="status-peers" id="status-peers-${id}">0</label>
     <label class="status-download" id="status-download-${id}">Download</label>
