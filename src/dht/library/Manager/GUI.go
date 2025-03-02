@@ -17,8 +17,8 @@ type labelCard struct {
 	Card  *widget.Card
 }
 
-type GUI[T Core.Contact] struct {
-	manager        IManagerRPC[T]
+type GUI struct {
+	manager        IManagerRPC
 	window         fyne.Window
 	nodeLabelsCard map[Core.ChordHash]labelCard // Map of node ID -> Label for dynamic updates
 	grid           *fyne.Container
@@ -26,10 +26,10 @@ type GUI[T Core.Contact] struct {
 	pausedButton   *widget.Button
 }
 
-func NewGUI[T Core.Contact](manager IManagerRPC[T]) *GUI[T] {
+func NewGUI(manager IManagerRPC) *GUI {
 	a := app.New() // Create a new application
 	window := a.NewWindow("Chord Network State")
-	gui := &GUI[T]{
+	gui := &GUI{
 		manager:        manager,
 		window:         window,
 		nodeLabelsCard: make(map[Core.ChordHash]labelCard),
@@ -54,7 +54,7 @@ func NewGUI[T Core.Contact](manager IManagerRPC[T]) *GUI[T] {
 	return gui
 }
 
-func (g *GUI[T]) updateState() {
+func (g *GUI) updateState() {
 	for {
 		time.Sleep(1 * time.Second)
 		if g.paused {
@@ -110,7 +110,7 @@ func (g *GUI[T]) updateState() {
 	}
 }
 
-func (g *GUI[T]) prepareState() map[Core.ChordHash]string {
+func (g *GUI) prepareState() map[Core.ChordHash]string {
 	result := make(map[Core.ChordHash]string)
 	for _, key := range g.manager.GetActiveNodesIds() {
 		result[key] = g.manager.GetNodeStateRPC(key) // this is an RPC.
@@ -118,7 +118,7 @@ func (g *GUI[T]) prepareState() map[Core.ChordHash]string {
 	return result
 }
 
-func (g *GUI[T]) Start() {
+func (g *GUI) Start() {
 	// Create a new window // Run state updates in a separate goroutine
 	go g.updateState()
 	g.window.ShowAndRun()

@@ -25,7 +25,7 @@ var availablePorts = []string{
 	"12361",
 }
 
-var networkInterface = "tun0"
+var networkInterface = "eth0"
 
 func SetNetworkInterface(iface string) {
 	networkInterface = iface

@@ -1,0 +1,6 @@
+@host = http://127.0.0.1:9201
+
+GET  {{host}}/announce?info_hash=Q%258Br%25E5%2587%25A5x%2510%257B%25C8%2525%2523%2582%25D6%257C%25E1wg_%250F&ip=10.0.10.2&left=0&peer_id=76967166129883485884&port=44671
+
+###
+GET {{host}}/nodeState

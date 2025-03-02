@@ -4,6 +4,7 @@ import (
 	"bittorrent/common"
 	"bittorrent/dht/library/BruteChord/Core"
 	"bittorrent/dht/library/WithSocket"
+	"encoding/gob"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 )
 
 type HttpTracker struct {
-	node   Core.BruteChord[WithSocket.SocketContact]
+	node   *Core.BruteChord[WithSocket.SocketContact]
 	logger common.Logger
 	lock   sync.Locker
 	Ip     string
@@ -30,12 +31,13 @@ func NewHttpTracker(name string) *HttpTracker {
 	httpTracker.Port = "8080"
 	go receiveFromMulticast(httpTracker.Ip, httpTracker.Port)
 	go httpTracker.Listen()
-	httpTracker.node = *WithSocket.NewNodeSocket()
+	httpTracker.node = WithSocket.NewNodeSocket()
 	return &httpTracker
 }
 
 func (tracker *HttpTracker) Listen() {
 	http.HandleFunc("/announce", tracker.handlePeersQuery)
+	http.HandleFunc("/nodeState", tracker.handleNodeState)
 	address := tracker.Ip + ":" + tracker.Port
 	err := http.ListenAndServe(address, nil)
 	if err != nil {
@@ -45,9 +47,16 @@ func (tracker *HttpTracker) Listen() {
 	tracker.logger.WriteToFileOK("Tracker listening on " + address)
 }
 
-/*
-Tracker have to handle the query from the client.
-*/
+func (tracker *HttpTracker) handleNodeState(w http.ResponseWriter, r *http.Request) {
+	result := tracker.node.GetState()
+	fmt.Printf("!!!!!!!!!!!! Handling Node State Request %v\n", result)
+	encoder := gob.NewEncoder(w)
+	err := encoder.Encode(result)
+	if err != nil {
+		tracker.logger.WriteToFileError("Failed to encode response: %s", err.Error())
+	}
+}
+
 func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
