@@ -31,7 +31,7 @@ func (a areYouMyPredecessor[contact]) HandleNotification(b *BruteChord[contact])
 	if b.responsible(a.Contact.GetNodeId()) {
 		b.logger.WriteToFileOK("I am the predecessor of %v", a.Contact.GetNodeId())
 		if b.GetContact(1).GetNodeId() == a.Contact.GetNodeId() && b.GetContact(2).GetNodeId() == a.MySuccessor.GetNodeId() {
-			b.logger.WriteToFileOK("I am already its predecessor of %v, and I have also already its predecesor so nothing new", a.Contact.GetNodeId())
+			b.logger.WriteToFileOK("I am already its predecessor of %v, and I have also already its predecessor so nothing new", a.Contact.GetNodeId())
 		} else {
 			b.setContact(a.Contact, 1)
 			b.setContact(a.MySuccessor, 2)

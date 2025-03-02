@@ -94,7 +94,7 @@ func (c *BruteChord[T]) sendCheckAlive() {
 	c.logger.WriteToFileOK("Calling sendCheckAlive Method")
 	c.logger.WriteToFileOK("Sending areYouAliveNotification to %v", c.GetContact(1))
 	c.clientChordCommunication.SendRequest(ClientTask[T]{
-		Targets: []T{c.GetContact(1), c.GetContact(2)},
+		Targets: []T{c.GetContact(1), c.GetContact(2), c.GetContact(-1)},
 		Data:    areYouAliveNotification[T]{Contact: c.GetContact(0)},
 	})
 }
@@ -115,6 +115,12 @@ func (c *BruteChord[T]) killDead() {
 		c.monitor.DeleteContact(successorSuccessor)
 		c.setContact(c.GetContact(1), 2)
 	}
+	predecessor := c.GetContact(-1)
+	if !c.monitor.CheckAlive(predecessor, 3*WaitingTime) {
+		c.logger.WriteToFileOK("My Predecessor %v looks Dead to me", predecessor)
+		c.monitor.DeleteContact(predecessor)
+		c.setContact(c.GetContact(0), -1)
+	}
 }
 
 func (c *BruteChord[T]) GetState() string {
@@ -126,17 +132,17 @@ func (c *BruteChord[T]) GetState() string {
 	successorSuccessorData := c.getAllData(2)
 	ownData := c.getAllData(0)
 	for _, key := range sortKeys(successorData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorData[key]) + "\n"
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", decodePeerList(successorData[key])) + "\n"
 	}
 	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetContact(2).GetNodeId())) + "\n"
 	state += "SuccessorSuccessor Data Replica:" + "\n"
 	for _, key := range sortKeys(successorSuccessorData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", successorSuccessorData[key]) + "\n"
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", decodePeerList(successorSuccessorData[key])) + "\n"
 	}
 	state += "Predecessor: " + strconv.Itoa(int(c.GetContact(-1).GetNodeId())) + "\n"
 	state += "Data stored:\n"
 	for _, key := range sortKeys(ownData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", ownData[key]) + "\n"
+		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", decodePeerList(ownData[key])) + "\n"
 	}
 	return state
 }
