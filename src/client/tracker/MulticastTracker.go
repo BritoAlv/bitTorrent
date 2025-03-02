@@ -39,14 +39,13 @@ func (s *signal) write(value bool) {
 	s.state = value
 }
 
-type CentralizedHttpTracker struct {
+type multicastTracker struct {
 	MulticastUrl string
 	ServerUrl    string
 }
 
-func (tracker *CentralizedHttpTracker) Track(request common.TrackRequest) (common.TrackResponse, error) {
-	const LOCAL_PORT = "9090"
-	MAX_COUNT := 10
+func (tracker *multicastTracker) Track(request common.TrackRequest) (common.TrackResponse, error) {
+	const MAX_COUNT = 10
 	count := 0
 
 	multicastIp, multicastPort, err := getMulticastIpPort(tracker.MulticastUrl)
@@ -55,14 +54,20 @@ func (tracker *CentralizedHttpTracker) Track(request common.TrackRequest) (commo
 	}
 
 	var response common.TrackResponse
-	for response, err = tracker.sendRequest(tracker.ServerUrl, request); err != nil; {
+	for response, err = tracker.sendRequest(request); err != nil; {
 		signal := newSignal()
 		multicastChannel := make(chan [2]string)
 
 		localIp, _ := WithSocket.GetIpFromInterface("eth0")
+		listener, err := net.Listen("tcp", localIp+":")
+		if err != nil {
+			log.Println("Failed to start listener:", err)
+			os.Exit(1)
+		}
+		localPort := strings.Split(listener.Addr().String(), ":")[1]
 
-		go sendToMulticast(signal, multicastIp, multicastPort, localIp, LOCAL_PORT)
-		go receiveFromMulticast(multicastChannel, localIp, LOCAL_PORT)
+		go sendToMulticast(signal, multicastIp, multicastPort, localIp, localPort)
+		go receiveFromMulticast(multicastChannel, listener)
 
 		var serverIp, serverPort string
 		for message := range multicastChannel {
@@ -81,8 +86,8 @@ func (tracker *CentralizedHttpTracker) Track(request common.TrackRequest) (commo
 	return response, err
 }
 
-func (tracker *CentralizedHttpTracker) sendRequest(url string, request common.TrackRequest) (common.TrackResponse, error) {
-	UrlSend, err := common.BuildHttpUrl(url, request)
+func (tracker *multicastTracker) sendRequest(request common.TrackRequest) (common.TrackResponse, error) {
+	UrlSend, err := common.BuildHttpUrl(tracker.ServerUrl, request)
 
 	if err != nil {
 		return common.TrackResponse{}, fmt.Errorf("an error occurred while building the url to contact the tracker : %w", err)
@@ -102,16 +107,15 @@ func (tracker *CentralizedHttpTracker) sendRequest(url string, request common.Tr
 	if err != nil {
 		return common.TrackResponse{}, fmt.Errorf("an error occurred while decoding the response from the tracker: %w", err)
 	}
+
+	log.Printf("Tracker's response: %v\n", response)
+	if response.FailureReason != "" {
+		return common.TrackResponse{}, errors.New(response.FailureReason)
+	}
 	return response, nil
 }
 
-func receiveFromMulticast(channel chan [2]string, ip string, port string) {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%v:%v", ip, port))
-	if err != nil {
-		log.Println("Failed to start listener:", err)
-		os.Exit(1)
-	}
-
+func receiveFromMulticast(channel chan [2]string, listener net.Listener) {
 	for {
 		connection, err := listener.Accept()
 		if err != nil {
@@ -122,6 +126,7 @@ func receiveFromMulticast(channel chan [2]string, ip string, port string) {
 		bytes, err := io.ReadAll(connection)
 		if err != nil {
 			log.Println("Failed to read from connection", err)
+			connection.Close()
 			continue
 		}
 
@@ -133,6 +138,8 @@ func receiveFromMulticast(channel chan [2]string, ip string, port string) {
 		serverIp, serverPort := message[0], message[1]
 		channel <- [2]string{serverIp, serverPort}
 		log.Printf("Received message: %v:%v \n", serverIp, serverPort)
+
+		connection.Close()
 		listener.Close()
 		break
 	}
@@ -156,7 +163,6 @@ func sendToMulticast(sig *signal, multicastIp string, multicastPort string, ip s
 			log.Println("Failed to dial UDP:", err)
 			os.Exit(1)
 		}
-		defer conn.Close()
 
 		// Send message to the multicast group
 		message := ip + ";" + port
@@ -166,6 +172,7 @@ func sendToMulticast(sig *signal, multicastIp string, multicastPort string, ip s
 		}
 		log.Println("Sent message to multicast group:", message)
 		time.Sleep(time.Second * 3)
+		conn.Close()
 	}
 }
 
