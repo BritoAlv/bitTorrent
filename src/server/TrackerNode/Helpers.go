@@ -5,6 +5,7 @@ import (
 	"bittorrent/dht/library/BruteChord/Core"
 	"bytes"
 	"encoding/gob"
+	"fmt"
 )
 
 func (tracker *HttpTracker) InfoHashToChordKey(infoHash [20]byte) Core.ChordHash {
@@ -16,6 +17,7 @@ func (tracker *HttpTracker) InfoHashToChordKey(infoHash [20]byte) Core.ChordHash
 }
 
 func (tracker *HttpTracker) EncodePeerList(peers map[string]common.Address) []byte {
+	fmt.Printf("Passed to encode this %v\n", peers)
 	if peers == nil {
 		panic("Passed Peers is nil")
 	}
@@ -25,11 +27,14 @@ func (tracker *HttpTracker) EncodePeerList(peers map[string]common.Address) []by
 	if err != nil {
 		panic(err)
 	}
-	return buf.Bytes()
+	bytesEncoded := buf.Bytes()
+	fmt.Printf("Encoded this \n%v\n", bytesEncoded)
+	return bytesEncoded
 }
 
 func (tracker *HttpTracker) DecodePeerList(data []byte) map[string]common.Address {
 	var peers map[string]common.Address
+	fmt.Printf("Received this to decode \n%v\n", data)
 	buf := bytes.NewBuffer(data)
 	decoder := gob.NewDecoder(buf)
 	err := decoder.Decode(&peers)

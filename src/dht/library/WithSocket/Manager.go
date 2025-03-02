@@ -15,7 +15,7 @@ type ManagerSocket struct {
 func NewManagerSocket() *ManagerSocket {
 	var managerSocket ManagerSocket
 	managerSocket.channel = make(chan Core.Notification[SocketContact])
-	managerSocket.nodeStates = Core.SafeMap[Core.ChordHash, string]{}
+	managerSocket.nodeStates = *Core.NewSafeMap[Core.ChordHash, string](make(map[Core.ChordHash]string))
 	managerSocket.socket = NewSocketServerClient(-1)
 	managerSocket.socket.SetData(managerSocket.channel, -1)
 	go managerSocket.listenStates()

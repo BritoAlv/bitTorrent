@@ -99,8 +99,10 @@ func TestBasicPutGet(t *testing.T) {
 	key := Core.GenerateRandomBinaryId()
 	value := []byte("test value")
 	randomNode := database.getRandomNode()
-	randomNode.Put(key, value)
-
+	result := randomNode.Put(key, value)
+	if result != true {
+		t.Errorf("Put failed And It Shouldn't")
+	}
 	// Verify that the data is stored correctly by querying every node.
 	for _, node := range nodes {
 		storedValue, exist := node.Get(key)

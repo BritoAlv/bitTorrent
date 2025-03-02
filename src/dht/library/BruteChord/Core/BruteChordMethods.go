@@ -10,19 +10,20 @@ func (c *BruteChord[T]) responsible(key ChordHash) bool {
 	return between(c.GetId(), key, c.GetContact(1).GetNodeId())
 }
 
-func (c *BruteChord[T]) sendRequestUntilConfirmation(clientTask ClientTask[T], taskId int64) {
+func (c *BruteChord[T]) sendRequestUntilConfirmation(clientTask ClientTask[T], taskId int64) bool {
 	c.logger.WriteToFileOK("Calling sendRequestUntilConfirmation Method with request %v and taskId %v", clientTask, taskId)
 	c.setPendingResponse(taskId, confirmations{Confirmation: false, Value: nil})
 	for i := 0; i < Attempts; i++ {
 		confirmation := c.getPendingResponse(taskId)
 		if confirmation.Confirmation {
 			c.logger.WriteToFileOK("Received Confirmation for taskId %v", taskId)
-			return
+			return true
 		}
 		c.clientChordCommunication.SendRequest(clientTask)
 		time.Sleep(WaitingTime * time.Second)
 	}
 	c.logger.WriteToFileOK("Didn't receive Confirmation for taskId %v", taskId)
+	return false
 }
 
 func (c *BruteChord[T]) replicateData(successorIndex int, target T) {
@@ -37,14 +38,14 @@ func (c *BruteChord[T]) replicateData(successorIndex int, target T) {
 			DataOwner:      c.GetContact(0),
 		},
 	}
-	go c.sendRequestUntilConfirmation(clientTask, taskId)
+	c.sendRequestUntilConfirmation(clientTask, taskId)
 }
 
 func (c *BruteChord[T]) Get(key ChordHash) ([]byte, bool) {
 	c.logger.WriteToFileOK("Calling Get Method on key %v", key)
 	taskId := generateTaskId()
 	clientTask := ClientTask[T]{
-		Targets: []T{c.GetContact(1)},
+		Targets: []T{c.GetContact(0)},
 		Data: getRequest[T]{
 			QueryHost: c.GetContact(0),
 			GetId:     taskId,
@@ -53,15 +54,20 @@ func (c *BruteChord[T]) Get(key ChordHash) ([]byte, bool) {
 	}
 	c.sendRequestUntilConfirmation(clientTask, taskId)
 	confirmation := c.getPendingResponse(taskId)
-	return confirmation.Value, confirmation.Confirmation
+	if confirmation.Value == nil {
+		return nil, false
+	} else {
+		return confirmation.Value, true
+	}
 }
 
 func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
 	c.logger.WriteToFileOK("Calling Put Method with key %v", key)
 	// create the taskId waiting for the response and send a put request to yourself. It is the same logic for the Get now.
 	taskId := generateTaskId()
+	fmt.Printf("TaskId for the Put is %v\n", taskId)
 	taskClient := ClientTask[T]{
-		Targets: []T{c.GetContact(1)},
+		Targets: []T{c.GetContact(0)},
 		Data: putRequest[T]{
 			QueryHost: c.GetContact(0),
 			PutId:     taskId,
@@ -69,7 +75,8 @@ func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
 			Value:     value,
 		},
 	}
-	c.sendRequestUntilConfirmation(taskClient, taskId)
+	result := c.sendRequestUntilConfirmation(taskClient, taskId)
+	fmt.Printf("Result %v\n", result)
 	confirmation := c.getPendingResponse(taskId)
 	return confirmation.Confirmation
 }

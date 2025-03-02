@@ -2,6 +2,7 @@ package Core
 
 import (
 	"bittorrent/common"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -31,10 +32,10 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.serverChordCommunication.SetData(node.notificationChannelServerNode, node.id)
 	node.clientChordCommunication = clientChordCommunication
 	node.monitor = monitor
-	node.pendingResponses = SafeMap[int64, confirmations]{}
+	node.pendingResponses = *NewSafeMap[int64, confirmations](make(map[int64]confirmations))
 	node.info[0].Contact = serverChordCommunication.GetContact()
 	for i := 0; i < 3; i++ {
-		node.info[i].Data = SafeStore{}
+		node.info[i].Data = *NewSafeMap[ChordHash, []byte](make(map[ChordHash][]byte))
 	}
 	node.setContact(node.defaultSuccessor(), -1)
 	node.setContact(node.defaultSuccessor(), 1)
@@ -96,6 +97,9 @@ func (c *BruteChord[T]) setData(key ChordHash, value []byte, index int) {
 }
 
 func (c *BruteChord[T]) setPendingResponse(taskId int64, confirmation confirmations) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	fmt.Printf("Setting Pending Response for taskId %v, and confirmation %v\n", taskId, confirmation)
 	c.pendingResponses.Set(taskId, confirmation)
 }
 
@@ -106,6 +110,8 @@ func (c *BruteChord[T]) addNewData(data Store, index int) {
 }
 
 func (c *BruteChord[T]) getPendingResponse(taskId int64) confirmations {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	confirmation, _ := c.pendingResponses.Get(taskId)
 	return confirmation
 }

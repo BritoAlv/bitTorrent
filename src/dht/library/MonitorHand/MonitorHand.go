@@ -13,7 +13,7 @@ type MonitorHand[T Core.Contact] struct {
 
 func NewMonitorHand[T Core.Contact](name string) *MonitorHand[T] {
 	return &MonitorHand[T]{
-		lastDateKnown: Core.SafeMap[Core.ChordHash, time.Time]{},
+		lastDateKnown: *Core.NewSafeMap[Core.ChordHash, time.Time](make(map[Core.ChordHash]time.Time)),
 		logger:        *common.NewLogger(name + ".txt"),
 	}
 }

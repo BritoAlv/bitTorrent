@@ -169,11 +169,11 @@ func (tracker *HttpTracker) solve(request common.TrackRequest) (common.TrackResp
 	ans.Interval = 5
 
 	infoHashToChordKey := tracker.InfoHashToChordKey(request.InfoHash)
-
+	fmt.Println("InfoHashToChordKey", infoHashToChordKey)
 	_, exist := tracker.node.Get(infoHashToChordKey)
 	if !exist {
 		tracker.logger.WriteToFileOK("New entry for info hash %v", request.InfoHash)
-		tracker.node.Put(infoHashToChordKey, tracker.EncodePeerList(map[string]common.Address{}))
+		tracker.node.Put(infoHashToChordKey, tracker.EncodePeerList(make(map[string]common.Address)))
 	}
 
 	valueInfoHash, _ := tracker.node.Get(infoHashToChordKey)

@@ -25,7 +25,7 @@ func NewAnnouncer(contact SocketContact) *Announcer {
 	var announcer Announcer
 	announcer.Contact = contact
 	announcer.monitor = MonitorHand.NewMonitorHand[SocketContact]("MonitorAnnouncer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
-	announcer.activeKnown = Core.SafeMap[Core.ChordHash, SocketContact]{}
+	announcer.activeKnown = *Core.NewSafeMap[Core.ChordHash, SocketContact](make(map[Core.ChordHash]SocketContact))
 	announcer.logger = *common.NewLogger("Announcer" + strconv.Itoa(int(contact.GetNodeId())) + ".txt")
 	_, broadIP := GetIpFromInterface(networkInterface)
 	randomPort := availablePorts[rand.Int()%len(availablePorts)]
