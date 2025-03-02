@@ -2,8 +2,9 @@ package Manager
 
 import (
 	"bittorrent/dht/library/BruteChord/Core"
+	"bittorrent/dht/library/MonitorHand"
+	"bittorrent/dht/library/WithSocket"
 	"encoding/gob"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,12 +14,14 @@ import (
 type HttpManager struct {
 	Ports      []string
 	KnownNodes Core.SafeMap[Core.ChordHash, string]
+	Monitor    MonitorHand.MonitorHand[WithSocket.SocketContact]
 }
 
 func NewHttpManager(ports []string) *HttpManager {
 	var httpManager HttpManager
 	httpManager.Ports = ports
 	httpManager.KnownNodes = *Core.NewSafeMap(make(map[Core.ChordHash]string))
+	httpManager.Monitor = *MonitorHand.NewMonitorHand[WithSocket.SocketContact]("HttpManagerMonitor")
 	go httpManager.updateStates()
 	return &httpManager
 }
@@ -37,10 +40,23 @@ func (h *HttpManager) updateStates() {
 				continue
 			}
 			nodeId, _ := strconv.Atoi(strings.Split(state, "\n")[0][6:])
-			fmt.Println(nodeId)
 			h.KnownNodes.Set(Core.ChordHash(nodeId), state)
+			h.Monitor.AddContact(WithSocket.SocketContact{
+				NodeId: Core.ChordHash(nodeId),
+				Addr:   nil,
+			}, time.Now())
 		}
 		time.Sleep(1 * time.Second)
+		for _, nodeId := range h.KnownNodes.GetKeys() {
+			contact := WithSocket.SocketContact{
+				NodeId: nodeId,
+				Addr:   nil,
+			}
+			if !h.Monitor.CheckAlive(contact, 5) {
+				h.KnownNodes.Delete(nodeId)
+				h.Monitor.DeleteContact(contact)
+			}
+		}
 	}
 }
 
