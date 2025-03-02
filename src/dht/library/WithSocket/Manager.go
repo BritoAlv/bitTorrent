@@ -29,7 +29,7 @@ func (m *ManagerSocket) listenStates() {
 		case notification := <-m.channel:
 			if reflect.TypeOf(notification) == reflect.TypeOf(&Core.TellMeYourStateResponse[SocketContact]{}) {
 				response := notification.(*Core.TellMeYourStateResponse[SocketContact])
-				m.nodeStates.Set(response.Sender.GetNodeId(), response.State)
+				m.nodeStates.Set(response.Sender.GetNodeId(), response.State.String())
 			}
 		}
 	}

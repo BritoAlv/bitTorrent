@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func ScenarioEasy() Manager.IManagerRPC[InMemory.ContactInMemory] {
+func ScenarioEasy() Manager.IManagerRPC {
 	common.SetLogDirectoryPath("BasicScenario")
 	var database = *InMemory.NewDataBaseInMemory()
 	fmt.Println("Nodes are being added and removed randomly every once a while")

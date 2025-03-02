@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func ScenarioMedium() Manager.IManagerRPC[InMemory.ContactInMemory] {
+func ScenarioMedium() Manager.IManagerRPC {
 	common.SetLogDirectoryPath("MediumScenario")
 	var database = *InMemory.NewDataBaseInMemory()
 	go func() {

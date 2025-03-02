@@ -1,9 +1,6 @@
 package Core
 
 import (
-	"bittorrent/common"
-	"bytes"
-	"encoding/gob"
 	"math/rand/v2"
 	"sort"
 	"strconv"
@@ -29,7 +26,7 @@ func Sort(ids []ChordHash) {
 	})
 }
 
-func sortKeys(data Store) []ChordHash {
+func SortKeys(data Store) []ChordHash {
 	keys := make([]ChordHash, 0)
 	for key := range data {
 		keys = append(keys, key)
@@ -72,15 +69,4 @@ func GetRandomFromDict[U comparable, T any](dict map[U]T) *T {
 		return &value
 	}
 	return nil
-}
-
-func decodePeerList(data []byte) map[string]common.Address {
-	var peers map[string]common.Address
-	buf := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buf)
-	err := decoder.Decode(&peers)
-	if err != nil {
-		panic(err)
-	}
-	return peers
 }

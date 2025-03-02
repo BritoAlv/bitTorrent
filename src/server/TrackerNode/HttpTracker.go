@@ -182,11 +182,11 @@ func (tracker *HttpTracker) solve(request common.TrackRequest) (common.TrackResp
 	_, exist := tracker.node.Get(infoHashToChordKey)
 	if !exist {
 		tracker.logger.WriteToFileOK("New entry for info hash %v", request.InfoHash)
-		tracker.node.Put(infoHashToChordKey, tracker.EncodePeerList(make(map[string]common.Address)))
+		tracker.node.Put(infoHashToChordKey, EncodePeerList(make(map[string]common.Address)))
 	}
 
 	valueInfoHash, _ := tracker.node.Get(infoHashToChordKey)
-	peersInfoHash := tracker.DecodePeerList(valueInfoHash)
+	peersInfoHash := DecodePeerList(valueInfoHash)
 
 	if _, exist := peersInfoHash[request.PeerId]; !exist {
 		tracker.logger.WriteToFileOK("New entry for peer id %v", request.PeerId)
@@ -194,7 +194,7 @@ func (tracker *HttpTracker) solve(request common.TrackRequest) (common.TrackResp
 			Ip:   request.Ip,
 			Port: request.Port,
 		}
-		tracker.node.Put(infoHashToChordKey, tracker.EncodePeerList(peersInfoHash))
+		tracker.node.Put(infoHashToChordKey, EncodePeerList(peersInfoHash))
 	}
 	ans.Peers = make(map[string]common.Address)
 	for id, address := range peersInfoHash {

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func ScenarioPut() Manager.IManagerRPC[InMemory.ContactInMemory] {
+func ScenarioPut() Manager.IManagerRPC {
 	N := 10
 	common.SetLogDirectoryPath("PutScenario")
 	var database = *InMemory.NewDataBaseInMemory()

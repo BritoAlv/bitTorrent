@@ -29,7 +29,8 @@ func (db *DataBaseInMemory) GetActiveNodesIds() []Core.ChordHash {
 
 func (db *DataBaseInMemory) GetNodeStateRPC(nodeId Core.ChordHash) string {
 	nodeDB := db.dict[nodeId]
-	return nodeDB.Node.GetState()
+	nodeState := nodeDB.Node.GetState()
+	return nodeState.String()
 }
 
 func NewDataBaseInMemory() *DataBaseInMemory {

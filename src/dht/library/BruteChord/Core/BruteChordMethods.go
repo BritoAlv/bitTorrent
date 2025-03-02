@@ -2,7 +2,6 @@ package Core
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 )
 
@@ -123,26 +122,13 @@ func (c *BruteChord[T]) killDead() {
 	}
 }
 
-func (c *BruteChord[T]) GetState() string {
-	state := "Node: " + strconv.Itoa(int(c.GetId())) + "\n"
-	state += "Successor: " + strconv.Itoa(int(c.GetContact(1).GetNodeId())) + "\n"
-	state += "Successor Data Replicas Are: " + "\n"
-
-	successorData := c.getAllData(1)
-	successorSuccessorData := c.getAllData(2)
-	ownData := c.getAllData(0)
-	for _, key := range sortKeys(successorData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", decodePeerList(successorData[key])) + "\n"
+func (c *BruteChord[T]) GetState() NodeState[T] {
+	return NodeState[T]{
+		NodeId:                 c.GetId(),
+		SuccessorId:            c.GetContact(1).GetNodeId(),
+		SuccessorData:          c.getAllData(1),
+		SuccessorSuccessorId:   c.GetContact(2).GetNodeId(),
+		SuccessorSuccessorData: c.getAllData(2),
+		PredecessorId:          c.GetContact(-1).GetNodeId(),
 	}
-	state += "SuccessorSuccessor: " + strconv.Itoa(int(c.GetContact(2).GetNodeId())) + "\n"
-	state += "SuccessorSuccessor Data Replica:" + "\n"
-	for _, key := range sortKeys(successorSuccessorData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", decodePeerList(successorSuccessorData[key])) + "\n"
-	}
-	state += "Predecessor: " + strconv.Itoa(int(c.GetContact(-1).GetNodeId())) + "\n"
-	state += "Data stored:\n"
-	for _, key := range sortKeys(ownData) {
-		state += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", decodePeerList(ownData[key])) + "\n"
-	}
-	return state
 }

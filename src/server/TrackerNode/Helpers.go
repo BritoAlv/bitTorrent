@@ -16,7 +16,7 @@ func (tracker *HttpTracker) InfoHashToChordKey(infoHash [20]byte) Core.ChordHash
 	return Core.ChordHash(sum % (1 << Core.NumberBits))
 }
 
-func (tracker *HttpTracker) EncodePeerList(peers map[string]common.Address) []byte {
+func EncodePeerList(peers map[string]common.Address) []byte {
 	fmt.Printf("Passed to encode this %v\n", peers)
 	if peers == nil {
 		panic("Passed Peers is nil")
@@ -32,7 +32,7 @@ func (tracker *HttpTracker) EncodePeerList(peers map[string]common.Address) []by
 	return bytesEncoded
 }
 
-func (tracker *HttpTracker) DecodePeerList(data []byte) map[string]common.Address {
+func DecodePeerList(data []byte) map[string]common.Address {
 	var peers map[string]common.Address
 	fmt.Printf("Received this to decode \n%v\n", data)
 	buf := bytes.NewBuffer(data)

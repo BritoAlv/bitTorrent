@@ -26,5 +26,6 @@ func RegisterNotifications[T Contact]() {
 	gob.Register(&confirmReplication[T]{})
 	gob.Register(&TellMeYourState[T]{})
 	gob.Register(&TellMeYourStateResponse[T]{})
+	gob.Register(&NodeState[T]{})
 	gob.Register(&net.TCPAddr{})
 }

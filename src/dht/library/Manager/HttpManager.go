@@ -4,10 +4,11 @@ import (
 	"bittorrent/dht/library/BruteChord/Core"
 	"bittorrent/dht/library/MonitorHand"
 	"bittorrent/dht/library/WithSocket"
+	"bittorrent/server/TrackerNode"
 	"encoding/gob"
+	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -26,6 +27,26 @@ func NewHttpManager(ports []string) *HttpManager {
 	return &httpManager
 }
 
+func (h *HttpManager) StateToString(state Core.NodeState[WithSocket.SocketContact]) string {
+	result := "Node: " + strconv.Itoa(int(state.NodeId)) + "\n"
+	result += "Successor: " + strconv.Itoa(int(state.SuccessorId)) + "\n"
+	result += "Successor Data Replicas Are: " + "\n"
+	for _, key := range Core.SortKeys(state.SuccessorData) {
+		result += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", TrackerNode.DecodePeerList(state.SuccessorData[key])) + "\n"
+	}
+	result += "SuccessorSuccessor: " + strconv.Itoa(int(state.SuccessorSuccessorId)) + "\n"
+	result += "SuccessorSuccessor Data Replica:" + "\n"
+	for _, key := range Core.SortKeys(state.SuccessorSuccessorData) {
+		result += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", TrackerNode.DecodePeerList(state.SuccessorSuccessorData[key])) + "\n"
+	}
+	result += "Predecessor: " + strconv.Itoa(int(state.PredecessorId)) + "\n"
+	result += "Data stored:\n"
+	for _, key := range Core.SortKeys(state.OwnData) {
+		result += strconv.Itoa(int(key)) + " -> " + fmt.Sprintf("%v", TrackerNode.DecodePeerList(state.OwnData[key])) + "\n"
+	}
+	return result
+}
+
 func (h *HttpManager) updateStates() {
 	for {
 		for _, port := range h.Ports {
@@ -33,16 +54,16 @@ func (h *HttpManager) updateStates() {
 			if err != nil {
 				continue
 			}
-			var state string
+			var state Core.NodeState[WithSocket.SocketContact]
 			decoder := gob.NewDecoder(resp.Body)
 			err = decoder.Decode(&state)
 			if err != nil {
 				continue
 			}
-			nodeId, _ := strconv.Atoi(strings.Split(state, "\n")[0][6:])
-			h.KnownNodes.Set(Core.ChordHash(nodeId), state)
+			nodeId := state.NodeId
+			h.KnownNodes.Set(nodeId, h.StateToString(state))
 			h.Monitor.AddContact(WithSocket.SocketContact{
-				NodeId: Core.ChordHash(nodeId),
+				NodeId: nodeId,
 				Addr:   nil,
 			}, time.Now())
 		}
