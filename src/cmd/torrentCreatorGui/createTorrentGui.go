@@ -28,6 +28,9 @@ func loadInputs() ([]TorrentInput, error) {
 		}
 		return nil, err
 	}
+	if len(data) == 0 {
+		return inputs, nil
+	}
 	err = json.Unmarshal(data, &inputs)
 	if err != nil {
 		return nil, err

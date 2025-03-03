@@ -22,11 +22,11 @@ type HttpTracker struct {
 	Port   string
 }
 
-func NewHttpTracker(name string) *HttpTracker {
+func NewHttpTracker(name string, iface string) *HttpTracker {
 	var httpTracker HttpTracker
 	httpTracker.logger = *common.NewLogger(fmt.Sprintf("HTTTracker%s.log", name))
 	httpTracker.lock = &sync.Mutex{}
-	ip, _ := WithSocket.GetIpFromInterface("eth0")
+	ip, _ := WithSocket.GetIpFromInterface(iface)
 	httpTracker.Ip = ip
 	httpTracker.Port = "8080"
 	go receiveFromMulticast(httpTracker.Ip, httpTracker.Port)
@@ -49,7 +49,6 @@ func (tracker *HttpTracker) Listen() {
 
 func (tracker *HttpTracker) handleNodeState(w http.ResponseWriter, r *http.Request) {
 	result := tracker.node.GetState()
-	fmt.Printf("!!!!!!!!!!!! Handling Node State Request %v\n", result)
 	encoder := gob.NewEncoder(w)
 	err := encoder.Encode(result)
 	if err != nil {
@@ -65,18 +64,20 @@ func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Requ
 	var request common.TrackRequest
 	var response common.TrackResponse
 
+	_, isCustomClient := r.Form[common.CustomClient]
+
 	if _, exist := r.Form[common.InfoHash]; !exist {
 		message := "InfoHash not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 	request.InfoHash, err = common.DecodeStrByt(r.Form[common.InfoHash][0])
 	if err != nil {
 		tracker.logger.WriteToFileError("Failed to decode the InfoHash to bytes: %s", err.Error())
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 
@@ -84,14 +85,14 @@ func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Requ
 		message := "PeerId not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 	request.PeerId, err = url.QueryUnescape(r.Form[common.PeerId][0])
 	if err != nil {
 		tracker.logger.WriteToFileError("Failed to unescape the PeerId : %s", err.Error())
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 
@@ -100,7 +101,7 @@ func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Requ
 		if err != nil {
 			tracker.logger.WriteToFileError("Failed to split host and Port from remote address: %s", err.Error())
 			response.FailureReason = err.Error()
-			tracker.sendResponse(w, response)
+			tracker.sendResponse(w, response, isCustomClient)
 			return
 		}
 		request.Ip = host
@@ -113,7 +114,7 @@ func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Requ
 		message := "Port not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 	request.Port = r.Form[common.Port][0]
@@ -122,21 +123,21 @@ func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Requ
 		message := "Left not found in request"
 		tracker.logger.WriteToFileError(message)
 		response.FailureReason = message
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 	request.Left, err = strconv.Atoi(r.Form[common.Left][0])
 	if err != nil {
 		tracker.logger.WriteToFileError("Failed to convert left to int: %s", err.Error())
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 	err = common.ValidateRequest(request)
 	if err != nil {
 		tracker.logger.WriteToFileError("Failed to validate request: %s", err.Error())
 		response.FailureReason = err.Error()
-		tracker.sendResponse(w, response)
+		tracker.sendResponse(w, response, isCustomClient)
 		return
 	}
 	tracker.logger.WriteToFileOK("Received request was decoded and its valid: %v", request)
@@ -145,13 +146,34 @@ func (tracker *HttpTracker) handlePeersQuery(w http.ResponseWriter, r *http.Requ
 		tracker.logger.WriteToFileError("Failed to solve request: %s", err.Error())
 		response.FailureReason = err.Error()
 	}
-
 	tracker.logger.WriteToFileOK("Will send this response: %v", response)
-	tracker.sendResponse(w, response)
+	tracker.sendResponse(w, response, isCustomClient)
 }
 
-func (tracker *HttpTracker) sendResponse(w http.ResponseWriter, response common.TrackResponse) {
-	responseEncoded, err := common.EncodeResponse(response)
+func buildOfficialResponse(response common.TrackResponse) common.OfficialTrackResponse {
+	var officialResponse common.OfficialTrackResponse
+	officialResponse.FailureReason = response.FailureReason
+	officialResponse.Interval = response.Interval
+	officialResponse.Peers = make([]common.OfficialTrackAddress, 0)
+	for _, address := range response.Peers {
+		port, _ := strconv.Atoi(address.Port)
+		officialResponse.Peers = append(officialResponse.Peers, common.OfficialTrackAddress{
+			Ip:   address.Ip,
+			Port: port,
+		})
+	}
+	return officialResponse
+}
+
+func (tracker *HttpTracker) sendResponse(w http.ResponseWriter, response common.TrackResponse, isCustom bool) {
+	var responseEncoded []byte
+	var err error
+	if !isCustom {
+		officialResponse := buildOfficialResponse(response)
+		responseEncoded, err = common.EncodeOfficialResponse(officialResponse)
+	} else {
+		responseEncoded, err = common.EncodeResponse(response)
+	}
 	if err != nil {
 		tracker.logger.WriteToFileError("Failed to encode response: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -175,7 +197,7 @@ func (tracker *HttpTracker) solve(request common.TrackRequest) (common.TrackResp
 
 	var ans common.TrackResponse
 	ans.FailureReason = ""
-	ans.Interval = 5
+	ans.Interval = 100000
 
 	infoHashToChordKey := tracker.InfoHashToChordKey(request.InfoHash)
 	fmt.Println("InfoHashToChordKey", infoHashToChordKey)
