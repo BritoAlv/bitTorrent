@@ -14,6 +14,7 @@ const PeerId = "peer_id"
 const Ip = "ip"
 const Port = "port"
 const Left = "left"
+const CustomClient = "CustomClient"
 
 func DecodeStrByt(s string) ([20]byte, error) {
 	s1, err := url.QueryUnescape(s)
@@ -34,6 +35,14 @@ func EncodeResponse(response TrackResponse) ([]byte, error) {
 	return result, nil
 }
 
+func EncodeOfficialResponse(response OfficialTrackResponse) ([]byte, error) {
+	result, err := bencode.EncodeBytes(response)
+	if err != nil {
+		return []byte{}, err
+	}
+	return result, nil
+}
+
 // BuildHttpUrl /*
 func BuildHttpUrl(trackerUrl string, request TrackRequest) (string, error) {
 	trackerL, err := url.Parse(trackerUrl)
@@ -47,6 +56,7 @@ func BuildHttpUrl(trackerUrl string, request TrackRequest) (string, error) {
 	values.Set(Ip, request.Ip)
 	values.Set(Port, request.Port)
 	values.Set(Left, strconv.Itoa(request.Left))
+	values.Set(CustomClient, "")
 	trackerL.RawQuery = values.Encode()
 	return trackerL.String(), nil
 }

@@ -130,5 +130,6 @@ func (c *BruteChord[T]) GetState() NodeState[T] {
 		SuccessorSuccessorId:   c.GetContact(2).GetNodeId(),
 		SuccessorSuccessorData: c.getAllData(2),
 		PredecessorId:          c.GetContact(-1).GetNodeId(),
+		OwnData:                c.getAllData(0),
 	}
 }

@@ -51,17 +51,11 @@ func GenerateRandomBinaryId() ChordHash {
 
 // between : starting from L + 1 in a clockwise order, I can reach M before R + 1.
 func between(L ChordHash, M ChordHash, R ChordHash) bool {
-	L = (L + 1) % (1 << NumberBits)
-	for {
-		if L == M {
-			return true
-		}
-		if L == R {
-			break
-		}
-		L = (L + 1) % (1 << NumberBits)
+	if L < R {
+		return L < M && M <= R
+	} else {
+		return L < M || M <= R
 	}
-	return false
 }
 
 func GetRandomFromDict[U comparable, T any](dict map[U]T) *T {

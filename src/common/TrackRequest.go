@@ -7,7 +7,6 @@ type TrackRequest struct {
 	Port     string   // The port number this peer is listening on
 	Left     int      // Number of bytes this peer has to download (Notice that if Left == 0 then the downloader becomes a seeder)
 	// Event    string // This is an optional key which maps to started, completed, or stopped
-
 	// Uploaded int // Statistical property not important for functioning purposes
 	// Downloaded int // Statistical property not important for functioning purposes
 }
