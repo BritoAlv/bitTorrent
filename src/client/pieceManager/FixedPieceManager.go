@@ -2,6 +2,7 @@ package pieceManager
 
 import (
 	"bittorrent/common"
+	"sync"
 )
 
 type fixedPieceManager struct {
@@ -11,6 +12,8 @@ type fixedPieceManager struct {
 	chunkLength          int
 	lastChunkLength      int
 	lastPieceChunkLength int
+
+	mutex *sync.Mutex
 }
 
 func New(length int, pieceLength int, chunkLength int) PieceManager {
@@ -18,6 +21,7 @@ func New(length int, pieceLength int, chunkLength int) PieceManager {
 	manager.chunkLength = chunkLength
 	manager.chunks = map[int][]bool{}
 	manager.uncheckedChunks = map[int]int{}
+	manager.mutex = new(sync.Mutex)
 
 	// Assuming the pieceLength >= chunkLength
 	chunksPerPiece := pieceLength / chunkLength
@@ -59,10 +63,16 @@ func New(length int, pieceLength int, chunkLength int) PieceManager {
 }
 
 func (manager *fixedPieceManager) ChunkLength() int {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	return manager.chunkLength
 }
 
 func (manager *fixedPieceManager) Bitfield() []bool {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	bitfield := make([]bool, len(manager.uncheckedChunks))
 
 	for index, uncheckedChunks := range manager.uncheckedChunks {
@@ -77,15 +87,24 @@ func (manager *fixedPieceManager) Bitfield() []bool {
 }
 
 func (manager *fixedPieceManager) VerifyPiece(index int) bool {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	return manager.uncheckedChunks[index] == 0
 }
 
 func (manager *fixedPieceManager) VerifyChunk(index int, offset int) bool {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	chunkIndex := offset / manager.chunkLength
 	return manager.chunks[index][chunkIndex]
 }
 
 func (manager *fixedPieceManager) CheckChunk(index int, offset int) bool {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	chunkIndex := offset / manager.chunkLength
 	if manager.chunks[index][chunkIndex] {
 		return manager.uncheckedChunks[index] == 0
@@ -97,12 +116,18 @@ func (manager *fixedPieceManager) CheckChunk(index int, offset int) bool {
 }
 
 func (manager *fixedPieceManager) UncheckPiece(index int) {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	chunks := len(manager.chunks[index])
 	manager.chunks[index] = make([]bool, chunks)
 	manager.uncheckedChunks[index] = chunks
 }
 
 func (manager *fixedPieceManager) GetUncheckedPieces() []int {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	uncheckedPieces := []int{}
 	for index, uncheckedChunks := range manager.uncheckedChunks {
 		if uncheckedChunks > 0 {
@@ -113,6 +138,9 @@ func (manager *fixedPieceManager) GetUncheckedPieces() []int {
 }
 
 func (manager *fixedPieceManager) GetUncheckedChunks(index int, n int) [][3]int {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
+
 	uncheckedChunks := [][3]int{}
 
 	count := 0
