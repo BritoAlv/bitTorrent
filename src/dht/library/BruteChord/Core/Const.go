@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-const NumberBits = 12
+const NumberBits = 20
 const WaitingTime = 1
 const Attempts = 5
 
