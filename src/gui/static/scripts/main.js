@@ -82,7 +82,6 @@ async function download(torrentPath) {
         id,
         torrentPath,
         "./data/downloads",
-        true,
     );
 
     const response = await post(API_URL+"download", downloadRequest);

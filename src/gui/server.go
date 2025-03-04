@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -43,10 +44,9 @@ func main() {
 
 // ** Contracts
 type downloadRequest struct {
-	Id              string
-	TorrentPath     string
-	DownloadPath    string
-	EncryptionLevel bool
+	Id           string
+	TorrentPath  string
+	DownloadPath string
 }
 
 type booleanResponse struct {
@@ -87,7 +87,8 @@ func (handler *apiHandler) download(ctx *gin.Context) {
 		ipAddress = "localhost"
 	}
 
-	_peer, err := startPeer(request.Id, request.TorrentPath, request.DownloadPath, ipAddress, request.EncryptionLevel)
+	encryptionLevel := os.Getenv("TORRENTE_ENCRYPTION_LEVEL")
+	_peer, err := startPeer(request.Id, request.TorrentPath, request.DownloadPath, ipAddress, encryptionLevel == "1")
 	if err != nil {
 		fmt.Println("API: Error: " + err.Error())
 		ctx.IndentedJSON(http.StatusOK, booleanResponse{

@@ -3,6 +3,5 @@ export class DownloadRequest {
         this.id = id;
         this.torrentPath = torrentPath;
         this.downloadPath = downloadPath;
-        this.encryptionLevel = encryptionLevel
     }
 }

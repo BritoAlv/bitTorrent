@@ -11,9 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // **Peer's structure**
@@ -29,6 +31,7 @@ type Peer struct {
 	tempPeers           map[string]common.Address // Peers being currently processed, might or not be official neighbors. This property can be refactor in the future
 	privateKey          *rsa.PrivateKey
 	requestedChunks     map[[3]string]int
+	requests            []int64
 
 	// Interfaces
 	tracker      tracker.Tracker
@@ -206,7 +209,7 @@ func (peer *Peer) handleTrackResponseNotification(notification trackNotification
 
 func (peer *Peer) handleDownloadNotification() {
 	// Constants
-	const UNCHECKED_CHUNKS_PER_PIECE = 3
+	const UNCHECKED_CHUNKS_PER_PIECE = 20
 	const INDEX = 0
 	const OFFSET = 1
 	const LENGTH = 2
@@ -224,8 +227,21 @@ func (peer *Peer) handleDownloadNotification() {
 		uncheckedChunks = append(uncheckedChunks, peer.pieceManager.GetUncheckedChunks(index, UNCHECKED_CHUNKS_PER_PIECE)...)
 	}
 
+	// Adjust according to encryption
+	maxChunks := 50
+	timeToWait := 3
+	if peer.privateKey == nil {
+		maxChunks = 4000
+		timeToWait = 2
+	}
+
+	chunksPerPeer := make(map[string]int)
 	for _, chunk := range uncheckedChunks {
 		for peerId, peerInfo := range peer.peers {
+			if chunksPerPeer[peerId] >= maxChunks {
+				continue
+			}
+
 			indexStr := strconv.Itoa(chunk[INDEX])
 			offsetStr := strconv.Itoa(chunk[OFFSET])
 			requestChunkId := [3]string{peerId, indexStr, offsetStr}
@@ -237,8 +253,9 @@ func (peer *Peer) handleDownloadNotification() {
 			}
 
 			if peerInfo.Bitfield[chunk[INDEX]] && (!previouslyRequested || requestedCount == 0) {
-				peer.requestedChunks[requestChunkId] = 20
+				peer.requestedChunks[requestChunkId] = 2
 
+				chunksPerPeer[peerId]++
 				go performSendRequestToPeer(peer.NotificationChannel, peerInfo.Connection, peerId, chunk[INDEX], chunk[OFFSET], chunk[LENGTH])
 				break
 			}
@@ -250,7 +267,7 @@ func (peer *Peer) handleDownloadNotification() {
 	}
 
 	if !peer.downloaded {
-		go performDownload(peer.NotificationChannel, 5)
+		go performDownload(peer.NotificationChannel, timeToWait)
 	}
 }
 
@@ -314,6 +331,22 @@ func (peer *Peer) handlePeerRequestNotification(notification peerRequestNotifica
 		peer.handleRemovePeerNotification(removePeerNotification{notification.PeerId})
 		return
 	}
+
+	// Adjust according to encryption
+	maxChunks := 100
+	timeToProcess := 15
+	if peer.privateKey == nil {
+		maxChunks = 10000
+		timeToProcess = 5
+	}
+
+	slices.Sort(peer.requests)
+	if len(peer.requests) >= maxChunks && time.Now().Unix()-peer.requests[len(peer.requests)-1] > int64(timeToProcess) {
+		peer.requests = peer.requests[maxChunks:]
+	} else if len(peer.requests) >= maxChunks {
+		return
+	}
+	peer.requests = append(peer.requests, time.Now().Unix())
 
 	start := peer.getAbsoluteOffset(notification.Index, notification.Offset)
 	go performSendPieceToPeer(peer.NotificationChannel, info.Connection, peer.fileManager, notification.PeerId, notification.Index, notification.Offset, notification.Length, start, peer.peers[notification.PeerId].PublicKey)
