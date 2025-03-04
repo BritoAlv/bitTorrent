@@ -10,7 +10,7 @@ import (
 func main() {
 	iface := "eth0"
 	WithSocket.RegisterStartUp(iface, "HttpChord", []string{"12345"})
-	var tracker1 = TrackerNode.NewHttpTracker("TrackerDocker", iface)
+	var tracker1 = TrackerNode.NewHttpTracker("TrackerDocker", iface, "8080")
 	for {
 		time.Sleep(1 * time.Second)
 		fmt.Printf("Tracker is running %v:%v \n", tracker1.Ip, tracker1.Port)

@@ -5,7 +5,7 @@ import (
 	"bittorrent/dht/library/BruteChord/Core"
 )
 
-var availablePorts = []string{
+var availablePortsUdp = []string{
 	"12345",
 	"12346",
 	"12347",
@@ -33,7 +33,7 @@ func SetNetworkInterface(iface string) {
 
 func RegisterStartUp(iface string, name string, ports []string) {
 	SetNetworkInterface(iface)
-	availablePorts = ports
+	availablePortsUdp = ports
 	common.SetLogDirectoryPath("./" + name)
 	Core.RegisterNotifications[SocketContact]()
 }
