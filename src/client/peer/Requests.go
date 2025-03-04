@@ -69,7 +69,7 @@ func performListen(notificationChannel chan interface{}, listener net.Listener, 
 		connection, err := listener.Accept()
 
 		if err != nil {
-			continue
+			break
 		}
 
 		go performReadFromPeer(notificationChannel, connection, false, sourceId, "", infohash, sourcePrivateKey)
