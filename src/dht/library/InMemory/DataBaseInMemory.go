@@ -15,20 +15,20 @@ type nodeDB struct {
 }
 
 type DataBaseInMemory struct { // Not Meant To Be Async.
-	dict   map[Core.ChordHash]nodeDB
+	dict   Core.SafeMap[Core.ChordHash, nodeDB]
 	logger common.Logger
 }
 
 func (db *DataBaseInMemory) GetActiveNodesIds() []Core.ChordHash {
 	var ids []Core.ChordHash
-	for id := range db.dict {
+	for _, id := range db.dict.GetKeys() {
 		ids = append(ids, id)
 	}
 	return ids
 }
 
 func (db *DataBaseInMemory) GetNodeStateRPC(nodeId Core.ChordHash) string {
-	nodeDB := db.dict[nodeId]
+	nodeDB, _ := db.dict.Get(nodeId)
 	nodeState := nodeDB.Node.GetState()
 	return nodeState.String()
 }
@@ -36,11 +36,11 @@ func (db *DataBaseInMemory) GetNodeStateRPC(nodeId Core.ChordHash) string {
 func NewDataBaseInMemory() *DataBaseInMemory {
 	db := DataBaseInMemory{}
 	db.logger = *common.NewLogger("DataBaseInMemory.txt")
-	db.dict = make(map[Core.ChordHash]nodeDB)
+	db.dict = *Core.NewSafeMap[Core.ChordHash, nodeDB](make(map[Core.ChordHash]nodeDB))
 	return &db
 }
 
-func (db *DataBaseInMemory) CreateRandomNode() {
+func (db *DataBaseInMemory) CreateRandomNode() Core.ChordHash {
 	randomId := Core.GenerateRandomBinaryId()
 	fmt.Println("Adding Node ", randomId)
 	iString := strconv.Itoa(int(randomId))
@@ -49,68 +49,79 @@ func (db *DataBaseInMemory) CreateRandomNode() {
 	var monitor = MonitorHand.NewMonitorHand[ContactInMemory]("monitor" + iString)
 	node := Core.NewBruteChord[ContactInMemory](server, client, monitor, randomId)
 	db.addNode(node, server, client)
+	return randomId
 }
 
-func (db *DataBaseInMemory) RemoveRandomNode() {
-	nodeDB := Core.GetRandomFromDict(db.dict)
-	db.RemoveNode(nodeDB.Node.GetId())
+func (db *DataBaseInMemory) RemoveRandomNode(n int) []Core.ChordHash {
+	nodes := db.getRandomNode(n)
+	ids := make([]Core.ChordHash, n)
+	for i, node := range nodes {
+		id := node.GetId()
+		db.RemoveNode(id)
+		ids[i] = id
+	}
+	return ids
 }
 
 func (db *DataBaseInMemory) PutRandomDataRandomNode() {
-	nodeDB := Core.GetRandomFromDict(db.dict)
+	node := db.getRandomNode(1)
 	key := Core.GenerateRandomBinaryId()
 	val := []byte{byte(key)}
-	db.Put(nodeDB.Node.GetId(), key, val)
+	node[0].Put(key, val)
 }
 
 func (db *DataBaseInMemory) Put(nodeId Core.ChordHash, key Core.ChordHash, val []byte) {
-	nodeDB := db.dict[nodeId]
-	node := nodeDB.Node
+	nodeDict, _ := db.dict.Get(nodeId)
+	node := nodeDict.Node
 	fmt.Printf("Going to put key %v with data %v using query node = %v \n", key, val, node.GetId())
 	node.Put(key, val)
 }
 
 func (db *DataBaseInMemory) addNode(node *Core.BruteChord[ContactInMemory], server *ServerInMemory, client *ClientInMemory) {
 	db.logger.WriteToFileOK("Adding node %v to database", node.GetId())
-	db.dict[node.GetId()] = nodeDB{
+	db.dict.Set(node.GetId(), nodeDB{
 		Node:   node,
 		Server: server,
 		Client: client,
-	}
+	})
 }
 
 func (db *DataBaseInMemory) getServers() []*ServerInMemory {
 	var servers []*ServerInMemory
-	for _, node := range db.dict {
+	for _, node := range db.dict.GetValues() {
 		servers = append(servers, node.Server)
 	}
 	return servers
 }
 
-func (db *DataBaseInMemory) getRandomNode() *Core.BruteChord[ContactInMemory] {
-	nodeDB := Core.GetRandomFromDict(db.dict)
-	return nodeDB.Node
+func (db *DataBaseInMemory) getRandomNode(n int) []*Core.BruteChord[ContactInMemory] {
+	nodes := db.dict.GetValues()
+	result := make([]*Core.BruteChord[ContactInMemory], n)
+	for i := 0; i < n; i++ {
+		result[i] = nodes[i].Node
+	}
+	return result
 }
 
 func (db *DataBaseInMemory) GetNodes() []*Core.BruteChord[ContactInMemory] {
 	var nodes []*Core.BruteChord[ContactInMemory]
-	for _, node := range db.dict {
+	for _, node := range db.dict.GetValues() {
 		nodes = append(nodes, node.Node)
 	}
 	return nodes
 }
 
 func (db *DataBaseInMemory) ChangeNodeState(nodeId Core.ChordHash, newState bool) {
-	nodeDB := db.dict[nodeId]
+	node, _ := db.dict.Get(nodeId)
 	if newState {
-		nodeDB.Node.SetWork(true)
+		node.Node.SetWork(true)
 	} else {
-		nodeDB.Node.SetWork(false)
+		node.Node.SetWork(false)
 	}
 }
 
 func (db *DataBaseInMemory) RemoveNode(nodeId Core.ChordHash) {
 	db.logger.WriteToFileOK("Removing node %v from database", nodeId)
 	db.ChangeNodeState(nodeId, false)
-	delete(db.dict, nodeId)
+	db.dict.Delete(nodeId)
 }

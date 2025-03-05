@@ -8,20 +8,6 @@ import (
 	"time"
 )
 
-const NumberOfRuns = 2
-
-func TestRunMultipleTimes(t *testing.T) {
-	for i := 0; i < NumberOfRuns; i++ {
-		t.Run("TestBasicChordBehaviourInitialization", TestBasicChordBehaviourInitialization)
-		t.Run("TestBasicChordBehaviourStabilization", TestBasicChordBehaviourStabilization)
-		t.Run("TestBasicPutGet", TestBasicPutGet)
-		t.Run("TestBasicReplication", TestBasicReplication)
-		t.Run("TestReplication", TestReplication)
-		t.Run("TestTolerance", TestTolerance)
-		t.Run("TestUpdateWithReplication", TestUpdateWithReplication)
-	}
-}
-
 func StartUp(name string, NumberNodes int) (*DataBaseInMemory, map[Core.ChordHash]*Core.BruteChord[ContactInMemory], []Core.ChordHash) {
 	common.SetLogDirectoryPath(name)
 	var database = *NewDataBaseInMemory()
@@ -98,7 +84,7 @@ func TestBasicPutGet(t *testing.T) {
 	// Put data into a random node
 	key := Core.GenerateRandomBinaryId()
 	value := []byte("test value")
-	randomNode := database.getRandomNode()
+	randomNode := database.getRandomNode(1)[0]
 	result := randomNode.Put(key, value)
 	if result != true {
 		t.Errorf("Put failed And It Shouldn't")
@@ -176,11 +162,11 @@ func TestTolerance(t *testing.T) {
 		if len(database.GetNodes()) >= 3 {
 			t.Logf("Removing nodes")
 			for j := 0; j < 2; j++ {
-				node1 := database.getRandomNode()
+				node1 := database.getRandomNode(1)[0]
 				database.RemoveNode(node1.GetId())
 			}
 			time.Sleep(4 * time.Second)
-			node1 := database.getRandomNode()
+			node1 := database.getRandomNode(1)[0]
 			for key := range data {
 				_, exist := node1.Get(key)
 				if !exist {
@@ -205,10 +191,10 @@ func TestUpdateWithReplication(t *testing.T) {
 	key := 10
 	valueOld := []byte("old value")
 	valueNew := []byte("new value")
-	randomNode := database.getRandomNode()
+	randomNode := database.getRandomNode(1)[0]
 	database.Put(randomNode.GetId(), Core.ChordHash(key), valueOld)
 	time.Sleep(3 * time.Second)
-	randomNode = database.getRandomNode()
+	randomNode = database.getRandomNode(1)[0]
 	database.Put(randomNode.GetId(), Core.ChordHash(key), valueNew)
 	time.Sleep(3 * time.Second)
 	for _, node := range database.GetNodes() {
@@ -220,9 +206,7 @@ func TestUpdateWithReplication(t *testing.T) {
 			t.Fatalf("Chord has incorrect value for key %v: got %v, want %v", key, string(value), string(valueNew))
 		}
 	}
-	for i := 0; i < 2; i++ {
-		database.RemoveRandomNode()
-	}
+	database.RemoveRandomNode(2)
 	time.Sleep(8 * time.Second)
 	for _, node := range database.GetNodes() {
 		value, exist := node.Get(Core.ChordHash(key))
@@ -231,6 +215,30 @@ func TestUpdateWithReplication(t *testing.T) {
 		}
 		if string(value) != string(valueNew) {
 			t.Fatalf("Chord has incorrect value for key %v: got %v, want %v", key, string(value), string(valueNew))
+		}
+	}
+}
+
+func TestUpdateWhileRecoveryTime(t *testing.T) {
+	NumberNodes := 3
+	database, _, _ := StartUp("TestUpdateWhileRecoveryTime", NumberNodes)
+	key := 10
+	valueOld := []byte("old value")
+	valueNew := []byte("new value")
+	randomNode := database.getRandomNode(1)[0]
+	database.Put(randomNode.GetId(), Core.ChordHash(key), valueOld)
+	time.Sleep(3 * time.Second)
+	database.RemoveRandomNode(2)
+	time.Sleep(5 * time.Second)
+	randomNode = database.getRandomNode(1)[0]
+	database.Put(randomNode.GetId(), Core.ChordHash(key), valueNew)
+	for _, node := range database.GetNodes() {
+		value, exist := node.Get(Core.ChordHash(key))
+		if !exist {
+			t.Fatalf("Chord does not have the value for key %v", key)
+		}
+		if string(value) != string(valueNew) {
+			t.Fatalf("Chord has incorrect value for key %v: got '%v', want '%v'", key, string(value), string(valueNew))
 		}
 	}
 }

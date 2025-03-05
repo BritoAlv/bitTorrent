@@ -31,9 +31,9 @@ func SetNetworkInterface(iface string) {
 	networkInterface = iface
 }
 
-func RegisterStartUp(iface string, name string, ports []string) {
+func RegisterStartUp(iface string, name string, portsUdp []string) {
 	SetNetworkInterface(iface)
-	availablePortsUdp = ports
+	availablePortsUdp = portsUdp
 	common.SetLogDirectoryPath("./" + name)
 	Core.RegisterNotifications[SocketContact]()
 }

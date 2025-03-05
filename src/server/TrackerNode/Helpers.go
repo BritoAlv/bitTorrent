@@ -13,6 +13,7 @@ import (
 )
 
 func (tracker *HttpTracker) InfoHashToChordKey(infoHash [20]byte) Core.ChordHash {
+	// TODO : Use Consistent Hashing, but this requires making Core.ChordHash a string.
 	sum := 0
 	for i := 0; i < 20; i++ {
 		sum += int(infoHash[i])

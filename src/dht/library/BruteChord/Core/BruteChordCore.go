@@ -2,7 +2,6 @@ package Core
 
 import (
 	"bittorrent/common"
-	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -20,6 +19,7 @@ type BruteChord[T Contact] struct {
 	clientChordCommunication      Client[T]                     // A Client that will send notifications to others nodes of type T.
 	logger                        common.Logger                 // To Log Everything The Node is doing.
 	isWorking                     bool
+	taskIdCounter                 int64
 }
 
 func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCommunication Client[T], monitor Monitor[T], id ChordHash) *BruteChord[T] {
@@ -40,8 +40,17 @@ func NewBruteChord[T Contact](serverChordCommunication Server[T], clientChordCom
 	node.setContact(node.defaultSuccessor(), -1)
 	node.setContact(node.defaultSuccessor(), 1)
 	node.setContact(node.defaultSuccessor(), 2)
+	node.taskIdCounter = 0
 	node.SetWork(true)
 	return &node
+}
+
+func (c *BruteChord[T]) generateTaskId() int64 {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	toReturn := c.taskIdCounter
+	c.taskIdCounter++
+	return toReturn
 }
 
 func (c *BruteChord[T]) GetId() ChordHash {
@@ -99,7 +108,6 @@ func (c *BruteChord[T]) setData(key ChordHash, value []byte, index int) {
 func (c *BruteChord[T]) setPendingResponse(taskId int64, confirmation confirmations) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	fmt.Printf("Setting Pending Response for taskId %v, and confirmation %v\n", taskId, confirmation)
 	c.pendingResponses.Set(taskId, confirmation)
 }
 

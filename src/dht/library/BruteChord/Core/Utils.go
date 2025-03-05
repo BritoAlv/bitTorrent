@@ -8,10 +8,6 @@ import (
 
 var usedId = map[ChordHash]bool{}
 
-func generateTaskId() int64 {
-	return rand.Int64()
-}
-
 func toString(A ChordHash) string {
 	return strconv.Itoa(int(A))
 }

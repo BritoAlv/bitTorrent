@@ -1,7 +1,6 @@
 package Core
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -27,7 +26,7 @@ func (c *BruteChord[T]) sendRequestUntilConfirmation(clientTask ClientTask[T], t
 
 func (c *BruteChord[T]) replicateData(successorIndex int, target T) {
 	c.logger.WriteToFileOK("Calling replicateData Method with successorIndex %v designated to %v", successorIndex, target)
-	taskId := generateTaskId()
+	taskId := c.generateTaskId()
 	clientTask := ClientTask[T]{
 		Targets: []T{target},
 		Data: receiveDataReplicate[T]{
@@ -42,7 +41,7 @@ func (c *BruteChord[T]) replicateData(successorIndex int, target T) {
 
 func (c *BruteChord[T]) Get(key ChordHash) ([]byte, bool) {
 	c.logger.WriteToFileOK("Calling Get Method on key %v", key)
-	taskId := generateTaskId()
+	taskId := c.generateTaskId()
 	clientTask := ClientTask[T]{
 		Targets: []T{c.GetContact(0)},
 		Data: getRequest[T]{
@@ -63,8 +62,7 @@ func (c *BruteChord[T]) Get(key ChordHash) ([]byte, bool) {
 func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
 	c.logger.WriteToFileOK("Calling Put Method with key %v", key)
 	// create the taskId waiting for the response and send a put request to yourself. It is the same logic for the Get now.
-	taskId := generateTaskId()
-	fmt.Printf("TaskId for the Put is %v\n", taskId)
+	taskId := c.generateTaskId()
 	taskClient := ClientTask[T]{
 		Targets: []T{c.GetContact(0)},
 		Data: putRequest[T]{
@@ -74,8 +72,7 @@ func (c *BruteChord[T]) Put(key ChordHash, value []byte) bool {
 			Value:     value,
 		},
 	}
-	result := c.sendRequestUntilConfirmation(taskClient, taskId)
-	fmt.Printf("Result %v\n", result)
+	c.sendRequestUntilConfirmation(taskClient, taskId)
 	confirmation := c.getPendingResponse(taskId)
 	return confirmation.Confirmation
 }

@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -18,7 +17,9 @@ type Logger struct {
 }
 
 func SetLogDirectoryPath(name string) {
-	LogsPath = "./logs/" + name + strconv.Itoa(time.Now().Nanosecond()) + "/"
+	curTime := time.Now()
+	formattedTime := curTime.Format("15:04:05")
+	LogsPath = "./logs/" + name + formattedTime + "/"
 }
 
 func NewLogger(fileID string) *Logger {
