@@ -118,7 +118,7 @@ func (tracker *HttpTracker) solve(request common.TrackRequest) (common.TrackResp
 	defer tracker.lock.Unlock()
 
 	var ans common.TrackResponse
-	ans.Interval = 100000
+	ans.Interval = 10
 
 	infoHashToChordKey := tracker.InfoHashToChordKey(request.InfoHash)
 	fmt.Println("InfoHashToChordKey", infoHashToChordKey)
