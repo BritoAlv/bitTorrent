@@ -14,11 +14,17 @@ import (
 
 func (tracker *HttpTracker) InfoHashToChordKey(infoHash [20]byte) Core.ChordHash {
 	// TODO : Use Consistent Hashing, but this requires making Core.ChordHash a string.
-	sum := 0
+	parts := 7
+	result := make([]int, parts)
 	for i := 0; i < 20; i++ {
-		sum += int(infoHash[i])
+		result[i%parts] += int(infoHash[i])
 	}
-	return Core.ChordHash(sum % (1 << Core.NumberBits))
+	final := 0
+	for i := 0; i < parts; i++ {
+		result[i] = result[i] % (1 << parts)
+		final |= result[i] << (parts * i)
+	}
+	return Core.ChordHash(final % (1 << Core.NumberBits))
 }
 
 func EncodePeerList(peers map[string]common.Address) []byte {

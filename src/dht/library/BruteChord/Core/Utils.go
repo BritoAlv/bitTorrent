@@ -53,10 +53,3 @@ func between(L ChordHash, M ChordHash, R ChordHash) bool {
 		return L < M || M <= R
 	}
 }
-
-func GetRandomFromDict[U comparable, T any](dict map[U]T) *T {
-	for _, value := range dict {
-		return &value
-	}
-	return nil
-}
